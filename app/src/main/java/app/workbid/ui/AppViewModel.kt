@@ -69,6 +69,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private var listeners: List<Job> = emptyList()
 
+    // Jobs and bids arrive from several scoped queries (see Repo); these hold each part before merging.
+    private var openJobs = listOf<HomeJob>()
+    private var postedJobs = listOf<HomeJob>()
+    private var bookedJobs = listOf<HomeJob>()
+    private val bidJobs = mutableMapOf<String, HomeJob>()
+    private val bidJobListeners = mutableMapOf<String, Job>()
+    private var myBids = listOf<Bid>()
+    private var bidsOnMyJobs = listOf<Bid>()
+    private val firstSnapshots = mutableSetOf<String>()
+
     init {
         // Earlier versions stored a fake offline identity here. Remove it so it can never be used.
         prefs.edit().remove("local_uid").remove("local_name").remove("local_email").apply()
@@ -261,6 +271,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         myName = ""
         loaded = false
         justSignedUp = false
+        resetData()
+    }
+
+    private fun resetData() {
+        bidJobListeners.values.forEach { it.cancel() }
+        bidJobListeners.clear()
+        bidJobs.clear()
+        firstSnapshots.clear()
+        openJobs = emptyList(); postedJobs = emptyList(); bookedJobs = emptyList()
+        myBids = emptyList(); bidsOnMyJobs = emptyList()
         jobs = emptyList(); bids = emptyList(); workOrders = emptyList(); receipts = emptyList()
     }
 
@@ -274,14 +294,59 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun startListening() {
+        val me = uid ?: return
         listeners.forEach { it.cancel() }
+        resetData()
         emailVerified = auth.currentUser?.isEmailVerified ?: false
         listeners = listOf(
-            collect(Repo.jobs()) { jobs = it; loaded = true },
-            collect(Repo.bids()) { bids = it },
-            collect(Repo.workOrders()) { workOrders = it },
-            collect(Repo.receipts()) { receipts = it },
+            collect(Repo.openJobs()) { openJobs = it; jobsArrived("open") },
+            collect(Repo.jobsPostedBy(me)) { postedJobs = it; jobsArrived("posted") },
+            collect(Repo.jobsBookedFor(me)) { bookedJobs = it; jobsArrived("booked") },
+            collect(Repo.bidsBy(me)) { myBids = it; mergeBids() },
+            collect(Repo.bidsOnJobsOf(me)) { bidsOnMyJobs = it; mergeBids() },
+            collect(Repo.workOrdersFor(me)) { workOrders = it },
+            collect(Repo.receiptsFor(me)) { receipts = it },
         )
+    }
+
+    private fun jobsArrived(source: String) {
+        firstSnapshots += source
+        if (firstSnapshots.containsAll(listOf("open", "posted", "booked"))) loaded = true
+        mergeJobs()
+        syncBidJobs()
+    }
+
+    private fun mergeJobs() {
+        jobs = (openJobs + postedJobs + bookedJobs + bidJobs.values).associateBy { it.id }.values.toList()
+    }
+
+    private fun mergeBids() {
+        bids = (myBids + bidsOnMyJobs).associateBy { it.id }.values.toList()
+        syncBidJobs()
+    }
+
+    /**
+     * A job I bid on drops out of the "open jobs" query once someone else is booked.
+     * Watch those jobs one by one (the rules allow it because my bid exists) so My bids can still show them.
+     */
+    private fun syncBidJobs() {
+        val covered = (openJobs + postedJobs + bookedJobs).map { it.id }.toSet()
+        val needed = myBids.map { it.jobId }.filter { it.isNotBlank() && it !in covered }.toSet()
+        (bidJobListeners.keys - needed).forEach { id ->
+            bidJobListeners.remove(id)?.cancel()
+            bidJobs.remove(id)
+        }
+        (needed - bidJobListeners.keys).forEach { id ->
+            bidJobListeners[id] = viewModelScope.launch {
+                Repo.job(id)
+                    .catch { bidJobs.remove(id); mergeJobs() }
+                    .collect { j ->
+                        if (j == null) bidJobs.remove(id) else bidJobs[id] = j
+                        mergeJobs()
+                    }
+            }
+        }
+        mergeJobs()
     }
 
     // ---------- actions ----------
@@ -362,7 +427,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // One bid per contractor per job: the ID is fixed, and the rules require it.
                 Repo.set(
                     "bids", "${job.id}_$me",
-                    editable + mapOf("jobId" to job.id, "contractorId" to me, "contractorName" to myName),
+                    editable + mapOf(
+                        "jobId" to job.id, "jobOwner" to job.postedBy,
+                        "contractorId" to me, "contractorName" to myName,
+                    ),
                 )
             }
         }
@@ -404,6 +472,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 "workorders", mapOf(
                     "jobId" to job.id,
                     "by" to me,
+                    // Who may read it: the homeowner and the booked contractor.
+                    "parties" to listOf(job.postedBy, me),
                     "number" to workOrdersFor(job.id).size + 1,
                     "lines" to lines.map { mapOf("desc" to it.desc, "qty" to it.qty, "rate" to it.rate) },
                     "notes" to notes.trim(),
@@ -425,6 +495,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 "receipts", mapOf(
                     "jobId" to job.id,
                     "by" to me,
+                    "parties" to listOf(job.postedBy, job.contractorId),
                     "vendor" to vendor.trim(),
                     "amount" to Math.round(amount * 100) / 100.0,
                     "date" to date,

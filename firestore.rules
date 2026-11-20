@@ -8,6 +8,7 @@ service cloud.firestore {
     function job(id) { return get(/databases/$(database)/documents/jobs/$(id)).data; }
     function jobExists(id) { return exists(/databases/$(database)/documents/jobs/$(id)); }
     function bid(id) { return get(/databases/$(database)/documents/bids/$(id)).data; }
+    function iBidOn(jobId) { return exists(/databases/$(database)/documents/bids/$(jobId + '_' + me())); }
     function myName() { return get(/databases/$(database)/documents/users/$(me())).data.name; }
 
     function newData() { return request.resource.data; }
@@ -111,7 +112,16 @@ service cloud.firestore {
           && newData().completedAt is int;
       }
 
-      allow read: if signedIn();
+      // Open jobs are public to signed-in users. Booked and finished jobs are visible only to the
+      // homeowner, the booked contractor, and contractors who bid on them (so they can see the outcome).
+      // The app's queries (status == open, postedBy == me, contractorId == me) each fit this rule.
+      allow list: if signedIn() && (resource.data.status == 'open'
+                                    || resource.data.postedBy == me()
+                                    || resource.data.contractorId == me());
+      allow get: if signedIn() && (resource.data.status == 'open'
+                                   || resource.data.postedBy == me()
+                                   || resource.data.contractorId == me()
+                                   || iBidOn(jobId));
       allow create: if signedIn() && validNewJob(newData());
       allow update: if signedIn() && (accepting() || rescheduling() || starting() || completing());
       // Only open jobs can be deleted; booked jobs keep their work orders and receipts.
@@ -131,12 +141,14 @@ service cloud.firestore {
           && d.createdAt is int;
       }
 
-      allow read: if signedIn();
+      // Sealed bids: only the contractor who placed it and the homeowner who posted the job can read a bid.
+      allow read: if signedIn() && (resource.data.contractorId == me() || resource.data.jobOwner == me());
 
       allow create: if signedIn()
-                    && newData().keys().hasOnly(['jobId', 'contractorId', 'contractorName', 'company', 'amount',
+                    && newData().keys().hasOnly(['jobId', 'jobOwner', 'contractorId', 'contractorName', 'company', 'amount',
                                                   'days', 'availableDate', 'window', 'message', 'createdAt'])
                     && newData().jobId is string
+                    && newData().jobOwner == job(newData().jobId).postedBy
                     && bidId == newData().jobId + '_' + me()
                     && newData().contractorId == me()
                     && newData().contractorName == myName()
@@ -165,11 +177,13 @@ service cloud.firestore {
     // ---------- work orders ----------
     // The booked contractor writes them; the homeowner can only approve them, once.
     match /workorders/{woId} {
-      allow read: if signedIn();
+      // Only the two people on the job can read it; `parties` is [homeowner, contractor].
+      allow read: if signedIn() && me() in resource.data.parties;
       allow create: if signedIn()
-                    && newData().keys().hasOnly(['jobId', 'by', 'number', 'lines', 'notes', 'approved', 'createdAt'])
+                    && newData().keys().hasOnly(['jobId', 'by', 'parties', 'number', 'lines', 'notes', 'approved', 'createdAt'])
                     && newData().by == me()
                     && newData().jobId is string
+                    && newData().parties == [job(newData().jobId).postedBy, me()]
                     && job(newData().jobId).contractorId == me()
                     && job(newData().jobId).status in ['scheduled', 'in_progress']
                     && newData().number is int && newData().number >= 1 && newData().number <= 999
@@ -204,11 +218,12 @@ service cloud.firestore {
     // ---------- receipts ----------
     // Either party on a booked, unfinished job can log receipts and delete their own.
     match /receipts/{receiptId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && me() in resource.data.parties;
       allow create: if signedIn()
-                    && newData().keys().hasOnly(['jobId', 'by', 'vendor', 'amount', 'date', 'note', 'createdAt'])
+                    && newData().keys().hasOnly(['jobId', 'by', 'parties', 'vendor', 'amount', 'date', 'note', 'createdAt'])
                     && newData().by == me()
                     && newData().jobId is string
+                    && newData().parties == [job(newData().jobId).postedBy, job(newData().jobId).contractorId]
                     && (job(newData().jobId).postedBy == me() || job(newData().jobId).contractorId == me())
                     && job(newData().jobId).status in ['scheduled', 'in_progress']
                     && str(newData().vendor, 1, 60)

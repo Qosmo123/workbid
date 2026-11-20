@@ -196,7 +196,7 @@ fun JobDetailScreen(
                     item {
                         Section("Your bid") {
                             BidCard(myBid, onAccept = null)
-                            Muted("${bids.size} bid${if (bids.size == 1) "" else "s"} on this job so far.")
+                            Muted("Bids are sealed: other contractors can't see your price, and you can't see theirs.")
                             TextButton(onClick = { confirmWithdraw = true }) {
                                 Text("Withdraw bid", color = MaterialTheme.colorScheme.error)
                             }

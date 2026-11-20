@@ -8,7 +8,7 @@ import {
   initializeTestEnvironment, assertSucceeds, assertFails,
 } from '@firebase/rules-unit-testing';
 import {
-  doc, setDoc, addDoc, updateDoc, deleteDoc, getDoc, collection, writeBatch,
+  doc, setDoc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, collection, writeBatch, query, where,
 } from 'firebase/firestore';
 
 let env;
@@ -27,7 +27,7 @@ const jobData = (over = {}) => ({
 
 const bidData = (jobId, uid = PRO, name = 'Pat', over = {}) => ({
   company: 'Pat Carpentry', amount: 250, days: 1, availableDate: '2026-12-02', window: '8–10 AM',
-  message: 'Can do', createdAt: now(), jobId, contractorId: uid, contractorName: name, ...over,
+  message: 'Can do', createdAt: now(), jobId, jobOwner: HOME, contractorId: uid, contractorName: name, ...over,
 });
 
 const acceptData = (bidId, b) => ({
@@ -201,7 +201,7 @@ test('jobs: delete open job with its bids in one batch; booked jobs cannot be de
 
 // ---------- work orders ----------
 const wo = (over = {}) => ({
-  jobId: 'j1', by: PRO, number: 1, lines: [{ desc: 'Labour', qty: 2, rate: 80 }],
+  jobId: 'j1', by: PRO, parties: [HOME, PRO], number: 1, lines: [{ desc: 'Labour', qty: 2, rate: 80 }],
   notes: '', approved: false, createdAt: now(), ...over,
 });
 test('workorders: booked contractor creates, homeowner approves once', async () => {
@@ -222,7 +222,7 @@ test('workorders: rejected if pre-approved, empty, from others, or on finished j
 
 // ---------- receipts ----------
 const rc = (by, over = {}) => ({
-  jobId: 'j1', by, vendor: 'RONA', amount: 42.5, date: '2026-12-02', note: '', createdAt: now(), ...over,
+  jobId: 'j1', by, parties: [HOME, PRO], vendor: 'RONA', amount: 42.5, date: '2026-12-02', note: '', createdAt: now(), ...over,
 });
 test('receipts: either party adds; strangers and bad amounts rejected', async () => {
   await seedBookedJob();
@@ -249,4 +249,65 @@ test('reports: anyone signed in can file one; nobody can read or change them', a
   await assertFails(addDoc(collection(db(PRO), 'reports'), report(HOME)));                     // as someone else
   await assertFails(addDoc(collection(db(PRO), 'reports'), report(PRO, { reason: 'I just dislike them' })));
   await assertFails(addDoc(collection(db(PRO), 'reports'), report(PRO, { status: 'closed' })));
+});
+
+// ---------- read privacy (H1) and the app's scoped queries (H2) ----------
+const q = (f, coll, field, op, val) => getDocs(query(collection(f, coll), where(field, op, val)));
+
+test('jobs: open jobs are listable; nobody can list the whole collection', async () => {
+  await seedOpenJobWithBids();
+  await assertSucceeds(q(db(STRANGER), 'jobs', 'status', '==', 'open'));
+  await assertSucceeds(q(db(HOME), 'jobs', 'postedBy', '==', HOME));
+  await assertSucceeds(q(db(PRO), 'jobs', 'contractorId', '==', PRO));
+  await assertFails(getDocs(collection(db(STRANGER), 'jobs')));
+  await assertFails(q(db(STRANGER), 'jobs', 'postedBy', '==', HOME));        // someone else's job history
+  await assertFails(q(anon(), 'jobs', 'status', '==', 'open'));
+});
+test('jobs: a booked job is visible to its two parties and to bidders only', async () => {
+  await seedBookedJob();
+  await assertSucceeds(getDoc(doc(db(HOME), 'jobs', 'j1')));
+  await assertSucceeds(getDoc(doc(db(PRO), 'jobs', 'j1')));
+  await assertSucceeds(getDoc(doc(db(PRO2), 'jobs', 'j1')));                   // bid and lost: sees the outcome
+  await assertFails(getDoc(doc(db(STRANGER), 'jobs', 'j1')));
+});
+test('bids: sealed — only the bidder and the homeowner can read a bid', async () => {
+  await seedOpenJobWithBids();
+  await assertSucceeds(getDoc(doc(db(PRO), 'bids', `j1_${PRO}`)));
+  await assertSucceeds(getDoc(doc(db(HOME), 'bids', `j1_${PRO}`)));
+  await assertFails(getDoc(doc(db(PRO2), 'bids', `j1_${PRO}`)));               // competitor
+  await assertFails(getDoc(doc(db(STRANGER), 'bids', `j1_${PRO}`)));
+  await assertSucceeds(q(db(PRO), 'bids', 'contractorId', '==', PRO));
+  await assertSucceeds(q(db(HOME), 'bids', 'jobOwner', '==', HOME));
+  await assertFails(q(db(PRO2), 'bids', 'jobId', '==', 'j1'));                 // peeking at a job's bids
+  await assertFails(getDocs(collection(db(HOME), 'bids')));
+});
+test('bids: jobOwner must be the real homeowner', async () => {
+  await seed(async (f) => setDoc(doc(f, 'jobs', 'j1'), jobData()));
+  await assertFails(setDoc(doc(db(PRO), 'bids', `j1_${PRO}`), bidData('j1', PRO, 'Pat', { jobOwner: PRO })));
+  await assertFails(setDoc(doc(db(PRO), 'bids', `j1_${PRO}`), bidData('j1', PRO, 'Pat', { jobOwner: '' })));
+  await assertFails(updateDoc(doc(db(PRO), 'bids', `j1_${PRO}`), { jobOwner: PRO }));
+});
+test('workorders and receipts: only the two parties can read them', async () => {
+  await seedBookedJob();
+  const w = await assertSucceeds(addDoc(collection(db(PRO), 'workorders'), wo()));
+  const r = await assertSucceeds(addDoc(collection(db(HOME), 'receipts'), rc(HOME)));
+  for (const uid of [HOME, PRO]) {
+    await assertSucceeds(getDoc(doc(db(uid), 'workorders', w.id)));
+    await assertSucceeds(getDoc(doc(db(uid), 'receipts', r.id)));
+    await assertSucceeds(q(db(uid), 'workorders', 'parties', 'array-contains', uid));
+    await assertSucceeds(q(db(uid), 'receipts', 'parties', 'array-contains', uid));
+  }
+  for (const uid of [PRO2, STRANGER]) {
+    await assertFails(getDoc(doc(db(uid), 'workorders', w.id)));
+    await assertFails(getDoc(doc(db(uid), 'receipts', r.id)));
+  }
+  await assertFails(getDocs(collection(db(STRANGER), 'receipts')));
+  await assertFails(q(db(STRANGER), 'receipts', 'jobId', '==', 'j1'));
+});
+test('workorders and receipts: parties must match the job', async () => {
+  await seedBookedJob();
+  await assertFails(addDoc(collection(db(PRO), 'workorders'), wo({ parties: [PRO, PRO] })));
+  await assertFails(addDoc(collection(db(PRO), 'workorders'), wo({ parties: [HOME, PRO, STRANGER] })));
+  await assertFails(addDoc(collection(db(HOME), 'receipts'), rc(HOME, { parties: [HOME, STRANGER] })));
+  await assertFails(addDoc(collection(db(HOME), 'receipts'), rc(HOME, { parties: [HOME] })));
 });

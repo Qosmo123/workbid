@@ -139,9 +139,10 @@ async function main() {
     const f = ctx.firestore();
     for (const p of people) await setDoc(doc(f, 'users', p.uid), { name: p.name, createdAt: now - 60 * day });
     for (const [id, data] of Object.entries(jobs)) await setDoc(doc(f, 'jobs', id), data);
-    for (const { id, ...data } of bids) await setDoc(doc(f, 'bids', id), data);
+    // Bids carry the homeowner's ID so only they and the bidder can read them (see firestore.rules).
+    for (const { id, ...data } of bids) await setDoc(doc(f, 'bids', id), { ...data, jobOwner: jobs[data.jobId].postedBy });
     await setDoc(doc(f, 'workorders', 'wo-fan-1'), {
-      jobId: 'fan', by: 'demo-pat', number: 1, approved: false, createdAt: now - 2 * 3600000,
+      jobId: 'fan', by: 'demo-pat', parties: [jobs.fan.postedBy, 'demo-pat'], number: 1, approved: false, createdAt: now - 2 * 3600000,
       notes: 'Includes patching the ceiling around the new fan. Paint touch-up not included.',
       lines: [
         { desc: 'Panasonic WhisperFit fan', qty: 1, rate: 189 },
@@ -150,7 +151,7 @@ async function main() {
       ],
     });
     await setDoc(doc(f, 'receipts', 'rc-fan-1'), {
-      jobId: 'fan', by: 'demo-pat', vendor: 'Home Depot Victoria', amount: 271.6, date: iso(0),
+      jobId: 'fan', by: 'demo-pat', parties: [jobs.fan.postedBy, 'demo-pat'], vendor: 'Home Depot Victoria', amount: 271.6, date: iso(0),
       note: 'Fan, duct kit, timer switch', createdAt: now - 3 * 3600000,
     });
   });

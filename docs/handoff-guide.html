@@ -427,7 +427,7 @@
     <tr><td>Business registration (BC)</td><td>Under $100 once</td><td>Optional at first; see chapter 8.</td></tr>
   </table>
   <div class="box warn"><span class="t">Watch out: free limits</span>
-    <p>Right now the app downloads every job and bid each time someone opens it. On the free plan Firestore allows 50,000 document reads a day. With 200 jobs and 600 bids, each app open reads about 800 documents, so roughly 60 app opens a day would use it up. When that happens the app stops loading until midnight Pacific. That's fine for the first weeks. Before you have more than a few dozen active users, have a developer make the change described in chapter 10 (item 2). It's the most important technical upgrade.</p>
+    <p>On the free plan Firestore allows 50,000 document reads a day. The app only downloads what each person is part of: the jobs open for bids, plus their own jobs, bids, work orders and receipts. With 50 open jobs, a typical app open reads about 60–100 documents, so the free plan covers several hundred app opens a day. If you ever hit the limit, the app stops loading until midnight Pacific. Check Firestore → Usage weekly, and switch to the pay-as-you-go Blaze plan (chapter 8) before you get close.</p>
   </div>
 </section>
 
@@ -1124,13 +1124,14 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
   <p class="kicker">Chapter 10</p>
   <h1 class="ch">Limits and next steps</h1>
   <p class="lede">Workbid works well for a launch in one area. These are the honest limits today, in the order worth fixing. Hand this page to any developer.</p>
-  <div class="inshort"><span class="t">In short</span><ul><li>The app is ready for a one-area launch.</li><li>Fix privacy of reads, data loading, and notifications before growing.</li><li>Hand this chapter to any developer you hire.</li></ul></div>
+  <div class="inshort"><span class="t">In short</span><ul><li>The app is ready for a one-area launch.</li><li>Read privacy and efficient loading are already done. Notifications are next.</li><li>Hand this chapter to any developer you hire.</li></ul></div>
 
   <table>
     <tr><th>#</th><th>Improvement</th><th>Why</th></tr>
-    <tr><td>1</td><td><strong>Limit who can read what.</strong> Today any signed-in user could technically read every bid and receipt (the app doesn't show them, but someone technical could fetch them).</td><td>Privacy, and sealed bids: contractors shouldn't see each other's prices.</td></tr>
-    <tr><td>2</td><td><strong>Load only what each screen needs.</strong> The app downloads every job and bid on open.</td><td>Costs and free-plan limits (chapter 1), and speed as you grow.</td></tr>
-    <tr><td>3</td><td><strong>Push notifications</strong> for new bids, bookings and approvals (Firebase Cloud Messaging).</td><td>The biggest product gap. Today people have to open the app to notice anything.</td></tr>
+    <tr><td>✓</td><td><strong>Limit who can read what.</strong> Done: bids are sealed (only the bidder and the homeowner see them), and work orders and receipts are visible only to the two people on the job.</td><td>Privacy, and fair bidding.</td></tr>
+    <tr><td>✓</td><td><strong>Load only what each person needs.</strong> Done: the app asks only for open jobs and the person's own items.</td><td>Costs and free-plan limits, and speed as you grow.</td></tr>
+    <tr><td>3</td><td><strong>Push notifications</strong> for new bids, bookings and approvals (Firebase Cloud Messaging plus a Cloud Function; needs the Blaze plan).</td><td>The biggest product gap. Today people have to open the app to notice anything.</td></tr>
+    <tr><td>3b</td><td><strong>Firebase App Check</strong> (Play Integrity).</td><td>Stops scripts that aren't your app from talking to your database. About an hour of setup in the Firebase console plus a small code change.</td></tr>
     <tr><td>4</td><td><strong>Block users</strong> and a simple admin screen for reports.</td><td>Easier moderation; Google expects strong UGC tools as you grow.</td></tr>
     <tr><td>5</td><td><strong>Photos</strong> on jobs and receipts (Firebase Storage).</td><td>Better bids; homeowners can show the problem.</td></tr>
     <tr><td>6</td><td><strong>Contractor profiles</strong> with licence, insurance, reviews.</td><td>Trust, and the basis for a paid "verified" tier.</td></tr>
@@ -1140,7 +1141,7 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
     <tr><td>10</td><td><strong>Crash reporting</strong> (Firebase Crashlytics) and automated backups.</td><td>Know about problems before users tell you.</td></tr>
   </table>
   <div class="box tip"><span class="t">Rule of thumb</span>
-    <p>Do items 1–3 before you spend money on marketing beyond your launch area. Everything else can wait until users ask for it.</p>
+    <p>Do items 3 and 3b before you spend money on marketing beyond your launch area. Everything else can wait until users ask for it.</p>
   </div>
 
   <h2>What's already solid</h2>
@@ -1164,7 +1165,7 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
     <tr><td>Android Studio shows red "Gradle sync failed"</td><td>Missing download or a network blip</td><td><em>File → Sync Project with Gradle Files</em>. If it persists, <em>File → Invalidate Caches → Restart</em>.</td></tr>
     <tr><td>Phone doesn't appear in Android Studio</td><td>USB debugging prompt not accepted, or a charge-only cable</td><td>Unplug, replug, accept the prompt on the phone. Try another cable.</td></tr>
     <tr><td>"Placing a bid failed: that change wasn't allowed"</td><td>Old security rules still published</td><td>Publish <code>firestore.rules</code> (chapter 4).</td></tr>
-    <tr><td>App stuck loading or "Live updates stopped"</td><td>No internet, or free daily read limit reached</td><td>Check Firestore → Usage. If at the limit, it resets at midnight Pacific. Plan improvement #2.</td></tr>
+    <tr><td>App stuck loading or "Live updates stopped"</td><td>No internet, or free daily read limit reached</td><td>Check Firestore → Usage. If at the limit, it resets at midnight Pacific; switch to the Blaze plan. If it says "permission denied", the published rules are older than the app: publish <code>firestore.rules</code> again (chapter 4).</td></tr>
     <tr><td>Reset or verification email never arrives</td><td>Spam folder, or a typo in the email</td><td>Check spam. Confirm the address in Authentication → Users.</td></tr>
     <tr><td>Play Console: "Version code 2 has already been used"</td><td>Forgot to bump versionCode</td><td>Raise <code>versionCode</code> in <code>app/build.gradle.kts</code> and rebuild.</td></tr>
     <tr><td>Play Console: "Upload key doesn't match"</td><td>Signed with a different keystore</td><td>Use the same <code>.jks</code> as your first upload. If lost, request an upload key reset in Play Console → <em>App integrity</em>.</td></tr>
@@ -1218,7 +1219,7 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
     <h4>How we use it</h4>
     <p>To run the app: to sign you in, show your jobs and bids to the right people, book dates, and let you track work. To respond to support requests and reports, and to keep the service safe.</p>
     <h4>Who can see it</h4>
-    <p>Your name and the jobs you post are visible to other Workbid users. Your bids are visible to the homeowner who posted the job. Work orders and receipts are visible to the homeowner and booked contractor. We don't sell your information or use it for advertising.</p>
+    <p>Your name and the jobs you post are visible to other Workbid users. Your bids are visible only to the homeowner who posted the job, not to other contractors. Once a job is booked, contractors who bid on it can see which company was booked and the final price. Work orders and receipts are visible to the homeowner and booked contractor. We don't sell your information or use it for advertising.</p>
     <h4>Service providers</h4>
     <p>We use Google Firebase (Google LLC) to store data and handle sign-in. Data may be stored or processed outside Canada, including in the United States.</p>
     <h4>Keeping and deleting your information</h4>

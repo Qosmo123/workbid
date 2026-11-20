@@ -1,7 +1,9 @@
 package app.workbid.data
 
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.WriteBatch
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -18,8 +20,8 @@ import kotlinx.coroutines.tasks.await
 object Repo {
     private val db: FirebaseFirestore get() = FirebaseFirestore.getInstance()
 
-    private fun <T> listen(collection: String, map: (DocumentSnapshot) -> T): Flow<List<T>> = callbackFlow {
-        val registration = db.collection(collection).addSnapshotListener { snap, err ->
+    private fun <T> listen(query: Query, map: (DocumentSnapshot) -> T): Flow<List<T>> = callbackFlow {
+        val registration = query.addSnapshotListener { snap, err ->
             if (err != null) {
                 close(err)
                 return@addSnapshotListener
@@ -29,10 +31,51 @@ object Repo {
         awaitClose { registration.remove() }
     }
 
-    fun jobs(): Flow<List<HomeJob>> = listen("jobs") { it.toJob() }
-    fun bids(): Flow<List<Bid>> = listen("bids") { it.toBid() }
-    fun workOrders(): Flow<List<WorkOrder>> = listen("workorders") { it.toWorkOrder() }
-    fun receipts(): Flow<List<Receipt>> = listen("receipts") { it.toReceipt() }
+    /** Listens to one document; sends null while it doesn't exist. */
+    private fun <T> listenDoc(ref: DocumentReference, map: (DocumentSnapshot) -> T): Flow<T?> = callbackFlow {
+        val registration = ref.addSnapshotListener { snap, err ->
+            if (err != null) {
+                close(err)
+                return@addSnapshotListener
+            }
+            trySend(snap?.takeIf { it.exists() }?.let(map))
+        }
+        awaitClose { registration.remove() }
+    }
+
+    // Each query below matches a read rule in firestore.rules. People only download what they're part of,
+    // so a launch costs a handful of reads instead of the whole database.
+
+    /** Jobs anyone can bid on. */
+    fun openJobs(): Flow<List<HomeJob>> =
+        listen(db.collection("jobs").whereEqualTo("status", "open")) { it.toJob() }
+
+    /** Jobs I posted (any status). */
+    fun jobsPostedBy(uid: String): Flow<List<HomeJob>> =
+        listen(db.collection("jobs").whereEqualTo("postedBy", uid)) { it.toJob() }
+
+    /** Jobs I'm booked on as the contractor. */
+    fun jobsBookedFor(uid: String): Flow<List<HomeJob>> =
+        listen(db.collection("jobs").whereEqualTo("contractorId", uid)) { it.toJob() }
+
+    /** One job, e.g. a job I bid on that went to someone else. */
+    fun job(id: String): Flow<HomeJob?> = listenDoc(db.collection("jobs").document(id)) { it.toJob() }
+
+    /** Bids I placed. */
+    fun bidsBy(uid: String): Flow<List<Bid>> =
+        listen(db.collection("bids").whereEqualTo("contractorId", uid)) { it.toBid() }
+
+    /** Bids on jobs I posted. */
+    fun bidsOnJobsOf(uid: String): Flow<List<Bid>> =
+        listen(db.collection("bids").whereEqualTo("jobOwner", uid)) { it.toBid() }
+
+    /** Work orders on jobs I'm part of. */
+    fun workOrdersFor(uid: String): Flow<List<WorkOrder>> =
+        listen(db.collection("workorders").whereArrayContains("parties", uid)) { it.toWorkOrder() }
+
+    /** Receipts on jobs I'm part of. */
+    fun receiptsFor(uid: String): Flow<List<Receipt>> =
+        listen(db.collection("receipts").whereArrayContains("parties", uid)) { it.toReceipt() }
 
     /** Adds a document with a generated ID and returns that ID. */
     suspend fun add(collection: String, data: Map<String, Any>): String =

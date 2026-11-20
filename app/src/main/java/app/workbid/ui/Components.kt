@@ -285,7 +285,8 @@ fun Section(title: String, onAdd: (() -> Unit)? = null, content: @Composable Col
 @Composable
 fun JobCard(
     job: HomeJob,
-    bidCount: Int,
+    /** Shown only to the job's owner; pass null to hide it (other people's bids are private). */
+    bidCount: Int?,
     onClick: () -> Unit,
     tag: String? = null,
     tagStatus: String = "pending",
@@ -320,12 +321,12 @@ fun JobCard(
                         val (bg, fg) = statusColors(tagStatus)
                         Pill(tag, bg, fg)
                     }
-                    job.status == "open" -> Text(
+                    job.status == "open" && bidCount != null -> Text(
                         "$bidCount bid${if (bidCount == 1) "" else "s"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    else -> MoneyText(job.price)
+                    job.status != "open" -> MoneyText(job.price)
                 }
             }
         }

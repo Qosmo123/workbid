@@ -17,7 +17,13 @@ Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build con
 > - **Added:** in-app reporting of jobs and bids (`reports` collection, with rules and tests), which Google Play's user-generated content policy requires.
 > - **Medium:** the accept dialog no longer promises notifications; work orders and receipts are blocked on completed jobs (since B4–B6).
 > - **Low:** git initialised, R8 and resource shrinking on (release ≈ 2.7 MB), versionCode 2.
-> - **Still open:** H1 (reads), H2 (whole-collection listeners), H8 (App Check), GST per contractor, money as cents, notifications, Crashlytics. Chapter 10 of `HANDOFF-GUIDE.pdf` has the order.
+> - **Still open:** H8 (App Check), GST per contractor, money as cents, notifications, Crashlytics. Chapter 10 of `HANDOFF-GUIDE.pdf` has the order.
+
+> **Update 2026-11-20 (read privacy and loading):**
+> - **H1** fixed: bids are readable only by the bidder and the job's homeowner (`jobOwner` on each bid). Work orders and receipts only by the two parties (`parties` array). Booked and finished jobs only by their parties and by contractors who bid on them.
+> - **H2** fixed: no whole-collection listeners. The app runs scoped queries (`status == open`, `postedBy == me`, `contractorId == me`, `contractorId`/`jobOwner == me` for bids, `parties array-contains me`), plus one-document listeners for jobs a contractor bid on and lost.
+> - 28 rules tests pass, including 6 new ones for read privacy and the exact queries the app runs. The queries were also run as the seeded demo users against the emulators.
+> - **Deploy note:** this app version needs the new rules, and the old app version can't run under them. Publish `firestore.rules` together with this release. Bids, work orders and receipts written before this change lack the new fields and become invisible. That's fine pre-launch; otherwise backfill them in the console.
 
 **Verdict (original audit): not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
 

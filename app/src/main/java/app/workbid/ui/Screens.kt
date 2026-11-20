@@ -386,9 +386,9 @@ fun MyJobsTab(vm: AppViewModel, open: (String) -> Unit, post: () -> Unit) {
         if (waiting.isNotEmpty()) item { GroupLabel("Waiting for bids") }
         items(waiting, key = { it.id }) { j -> JobCard(j, 0, onClick = { open(j.id) }) }
         if (booked.isNotEmpty()) item { GroupLabel("Booked") }
-        items(booked, key = { it.id }) { j -> JobCard(j, 0, onClick = { open(j.id) }) }
+        items(booked, key = { it.id }) { j -> JobCard(j, null, onClick = { open(j.id) }) }
         if (done.isNotEmpty()) item { GroupLabel("Completed") }
-        items(done, key = { it.id }) { j -> JobCard(j, 0, onClick = { open(j.id) }) }
+        items(done, key = { it.id }) { j -> JobCard(j, null, onClick = { open(j.id) }) }
     }
 }
 
@@ -449,7 +449,7 @@ fun FindWorkTab(vm: AppViewModel, open: (String) -> Unit) {
         items(shown, key = { it.id }) { j ->
             val mine = vm.myBid(j.id)
             JobCard(
-                j, vm.bidsFor(j.id).size, onClick = { open(j.id) },
+                j, null, onClick = { open(j.id) },
                 tag = mine?.let { "You bid ${money(it.amount)}" },
                 tagStatus = "scheduled",
             )
@@ -476,15 +476,15 @@ fun MyBidsTab(vm: AppViewModel, open: (String) -> Unit, browse: () -> Unit) {
         }
         if (won.isNotEmpty()) item { GroupLabel("Won") }
         items(won, key = { it.first.id }) { (b, j) ->
-            JobCard(j, 0, onClick = { open(j.id) }, tag = "Accepted · ${money(b.amount)}", tagStatus = "complete")
+            JobCard(j, null, onClick = { open(j.id) }, tag = "Accepted · ${money(b.amount)}", tagStatus = "complete")
         }
         if (pending.isNotEmpty()) item { GroupLabel("Waiting on homeowner") }
         items(pending, key = { it.first.id }) { (b, j) ->
-            JobCard(j, vm.bidsFor(j.id).size, onClick = { open(j.id) }, tag = "Pending · ${money(b.amount)}", tagStatus = "open")
+            JobCard(j, null, onClick = { open(j.id) }, tag = "Pending · ${money(b.amount)}", tagStatus = "open")
         }
         if (lost.isNotEmpty()) item { GroupLabel("Not selected") }
         items(lost, key = { it.first.id }) { (b, j) ->
-            JobCard(j, 0, onClick = { open(j.id) }, tag = "Not selected · ${money(b.amount)}", tagStatus = "lost")
+            JobCard(j, null, onClick = { open(j.id) }, tag = "Not selected · ${money(b.amount)}", tagStatus = "lost")
         }
     }
 }
@@ -523,7 +523,7 @@ fun ScheduleTab(vm: AppViewModel, open: (String) -> Unit) {
             items(jobs, key = { it.id }) { j ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     DateBlock(j.scheduledDate, past = j.scheduledDate < todayIso, today = j.scheduledDate == todayIso)
-                    Box(Modifier.weight(1f)) { JobCard(j, 0, onClick = { open(j.id) }) }
+                    Box(Modifier.weight(1f)) { JobCard(j, null, onClick = { open(j.id) }) }
                 }
             }
         }
