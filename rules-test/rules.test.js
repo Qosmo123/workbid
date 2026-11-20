@@ -232,3 +232,21 @@ test('receipts: either party adds; strangers and bad amounts rejected', async ()
   await assertFails(addDoc(collection(db(HOME), 'receipts'), rc(HOME, { amount: -10 })));
   await assertFails(addDoc(collection(db(HOME), 'receipts'), rc(PRO)));
 });
+
+// ---------- reports ----------
+const report = (by, over = {}) => ({
+  type: 'job', targetId: 'j1', jobId: 'j1', reason: 'Spam or scam', details: '', by, status: 'new',
+  createdAt: now(), ...over,
+});
+test('reports: anyone signed in can file one; nobody can read or change them', async () => {
+  await seedOpenJobWithBids();
+  const ref = await assertSucceeds(addDoc(collection(db(PRO), 'reports'), report(PRO)));
+  await assertFails(getDoc(doc(db(PRO), 'reports', ref.id)));
+  await assertFails(getDoc(doc(db(HOME), 'reports', ref.id)));
+  await assertFails(updateDoc(doc(db(PRO), 'reports', ref.id), { status: 'closed' }));
+  await assertFails(deleteDoc(doc(db(PRO), 'reports', ref.id)));
+  await assertFails(addDoc(collection(anon(), 'reports'), report(PRO)));
+  await assertFails(addDoc(collection(db(PRO), 'reports'), report(HOME)));                     // as someone else
+  await assertFails(addDoc(collection(db(PRO), 'reports'), report(PRO, { reason: 'I just dislike them' })));
+  await assertFails(addDoc(collection(db(PRO), 'reports'), report(PRO, { status: 'closed' })));
+});

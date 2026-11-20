@@ -15,6 +15,7 @@ import app.workbid.data.Repo
 import app.workbid.data.WorkOrder
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -41,6 +42,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var role by mutableStateOf(prefs.getString("role", "home") ?: "home")
         private set
     var busy by mutableStateOf(false)
+        private set
+
+    /** False until the first jobs snapshot arrives, so screens can show a placeholder instead of "nothing here". */
+    var loaded by mutableStateOf(false)
+        private set
+
+    /** True for the first session after creating an account, to show a short welcome. */
+    var justSignedUp by mutableStateOf(false)
+
+    val email: String get() = auth.currentUser?.email.orEmpty()
+    var emailVerified by mutableStateOf(auth.currentUser?.isEmailVerified ?: false)
         private set
 
     var jobs by mutableStateOf(listOf<HomeJob>())
@@ -92,15 +104,108 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         startListening()
     }
 
-    fun signUp(name: String, email: String, password: String) = authAction {
+    fun signUp(name: String, email: String, password: String, startRole: String) = authAction {
         val cleanName = name.trim()
         val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
         val user = result.user ?: error("Account was not created. Try again.")
         user.updateProfile(UserProfileChangeRequest.Builder().setDisplayName(cleanName).build()).await()
-        uid = user.uid
-        myName = cleanName
         Repo.set("users", user.uid, mapOf("name" to cleanName, "createdAt" to System.currentTimeMillis()))
+        // A verification email helps keep out fake accounts. Not fatal if it fails.
+        runCatching { user.sendEmailVerification().await() }
+        setRole(startRole)
+        myName = cleanName
+        justSignedUp = true
+        uid = user.uid
         startListening()
+    }
+
+    /** Sends a reset link. The reply is the same whether or not the account exists, so emails can't be probed. */
+    fun sendPasswordReset(email: String) {
+        val clean = email.trim()
+        if (clean.isBlank()) {
+            message = "Type your email first, then tap Forgot password."
+            return
+        }
+        viewModelScope.launch {
+            busy = true
+            message = try {
+                auth.sendPasswordResetEmail(clean).await()
+                "If there's an account for $clean, a reset link is on its way. Check your inbox and spam folder."
+            } catch (e: FirebaseNetworkException) {
+                "No connection. Check your internet and try again."
+            } catch (e: Exception) {
+                "If there's an account for $clean, a reset link is on its way. Check your inbox and spam folder."
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    fun resendVerification() = act("Verification email sent to $email") {
+        auth.currentUser?.sendEmailVerification()?.await()
+    }
+
+    /** Re-reads the account from Firebase, e.g. after the person taps the link in the verification email. */
+    fun refreshAccount() {
+        viewModelScope.launch {
+            runCatching { auth.currentUser?.reload()?.await() }
+            emailVerified = auth.currentUser?.isEmailVerified ?: false
+        }
+    }
+
+    fun updateName(name: String) {
+        val me = uid ?: return
+        val clean = name.trim().take(60)
+        if (clean.isBlank()) {
+            message = "Your name can't be empty."
+            return
+        }
+        act("Name updated") {
+            Repo.update("users", me, mapOf("name" to clean))
+            auth.currentUser?.updateProfile(UserProfileChangeRequest.Builder().setDisplayName(clean).build())?.await()
+            myName = clean
+        }
+    }
+
+    /**
+     * Permanently deletes the account (Google Play requires this to be possible in the app).
+     * Removes the profile, the person's open jobs and their bids, and every bid they placed that wasn't booked.
+     * Booked and completed jobs stay so the other person keeps their records.
+     */
+    fun deleteAccount(password: String, done: () -> Unit) {
+        val user = auth.currentUser ?: return
+        val me = user.uid
+        viewModelScope.launch {
+            busy = true
+            try {
+                // Firebase asks for a recent sign-in before deleting an account.
+                user.reauthenticate(EmailAuthProvider.getCredential(user.email.orEmpty(), password)).await()
+                val myOpenJobs = jobs.filter { it.postedBy == me && it.status == "open" }
+                val openJobIds = myOpenJobs.map { it.id }.toSet()
+                val myBids = bids.filter { b ->
+                    b.contractorId == me && b.jobId !in openJobIds && job(b.jobId)?.acceptedBidId != b.id
+                }
+                Repo.batch { batch, db ->
+                    myOpenJobs.forEach { j ->
+                        bidsFor(j.id).forEach { batch.delete(db.collection("bids").document(it.id)) }
+                        batch.delete(db.collection("jobs").document(j.id))
+                    }
+                    myBids.forEach { batch.delete(db.collection("bids").document(it.id)) }
+                    batch.delete(db.collection("users").document(me))
+                }
+                user.delete().await()
+                prefs.edit().clear().apply()
+                signOut()
+                message = "Your account has been deleted."
+                done()
+            } catch (e: FirebaseAuthInvalidCredentialsException) {
+                message = "That password is wrong. Your account was not deleted."
+            } catch (e: Exception) {
+                message = if (e is FirebaseFirestoreException) writeError(e) else authError(e)
+            } finally {
+                busy = false
+            }
+        }
     }
 
     /**
@@ -154,18 +259,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         auth.signOut()
         uid = null
         myName = ""
+        loaded = false
+        justSignedUp = false
         jobs = emptyList(); bids = emptyList(); workOrders = emptyList(); receipts = emptyList()
     }
 
     private fun <T> collect(flow: Flow<List<T>>, assign: (List<T>) -> Unit): Job = viewModelScope.launch {
-        flow.catch { message = "Live updates stopped: ${it.localizedMessage ?: "connection lost"}" }
+        flow.catch {
+            // Stop showing loading placeholders, and say what went wrong.
+            loaded = true
+            message = "Live updates stopped: ${it.localizedMessage ?: "connection lost"}. Sign out and back in to retry."
+        }
             .collect { assign(it) }
     }
 
     private fun startListening() {
         listeners.forEach { it.cancel() }
+        emailVerified = auth.currentUser?.isEmailVerified ?: false
         listeners = listOf(
-            collect(Repo.jobs()) { jobs = it },
+            collect(Repo.jobs()) { jobs = it; loaded = true },
             collect(Repo.bids()) { bids = it },
             collect(Repo.workOrders()) { workOrders = it },
             collect(Repo.receipts()) { receipts = it },
@@ -317,6 +429,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     "amount" to Math.round(amount * 100) / 100.0,
                     "date" to date,
                     "note" to note.trim(),
+                    "createdAt" to System.currentTimeMillis(),
+                )
+            )
+        }
+    }
+
+    /**
+     * Saves a report about a job or bid for the owner to review in the Firebase console (collection "reports").
+     * Google Play requires apps with user-generated content to offer in-app reporting.
+     */
+    fun report(type: String, targetId: String, jobId: String, reason: String, details: String) {
+        val me = uid ?: return
+        act("Thanks. We'll review this report.") {
+            Repo.add(
+                "reports", mapOf(
+                    "type" to type,
+                    "targetId" to targetId,
+                    "jobId" to jobId,
+                    "reason" to reason,
+                    "details" to details.trim().take(500),
+                    "by" to me,
+                    "status" to "new",
                     "createdAt" to System.currentTimeMillis(),
                 )
             )

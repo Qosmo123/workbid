@@ -8,6 +8,17 @@ Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build con
 > - **Not yet done:** running the app on a device, and republishing `firestore.rules` in the Firebase console. The High and Medium items below are still open.
 > - **Also fixed:** deleting a job is now a single batch (Medium), and the sign-up name is capped at 60 characters to match the rules.
 
+> **Update 2026-11-20 (UI and hand-off): more items addressed** on branch `feature/ui-and-handoff`:
+> - **H3** fixed: in-app account deletion (Account → Delete account, with password confirmation). A web deletion page template is in the hand-off guide.
+> - **H4** fixed: Forgot password, verification email on sign-up, and resend/refresh on the Account screen.
+> - **H5** fixed: release signing via `keystore.properties`, and the README and guide now use signed bundles and Play testing tracks.
+> - **H6** fixed: compileSdk/targetSdk 36. Also AGP 8.11.1, Gradle 8.13, Kotlin 2.0.21.
+> - **H7** partly fixed: links in `AppConfig.kt`, plus privacy policy and terms templates in the guide. The owner still has to publish them.
+> - **Added:** in-app reporting of jobs and bids (`reports` collection, with rules and tests), which Google Play's user-generated content policy requires.
+> - **Medium:** the accept dialog no longer promises notifications; work orders and receipts are blocked on completed jobs (since B4–B6).
+> - **Low:** git initialised, R8 and resource shrinking on (release ≈ 2.7 MB), versionCode 2.
+> - **Still open:** H1 (reads), H2 (whole-collection listeners), H8 (App Check), GST per contractor, money as cents, notifications, Crashlytics. Chapter 10 of `HANDOFF-GUIDE.pdf` has the order.
+
 **Verdict (original audit): not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
 
 ---

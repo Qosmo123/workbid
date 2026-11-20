@@ -25,6 +25,9 @@ service cloud.firestore {
     }
     function windows() { return ['8–10 AM', '10 AM–12 PM', '12–2 PM', '2–4 PM', '4–6 PM', 'Flexible']; }
     function timings() { return ['Flexible', 'Within 2 weeks', 'This week', 'Urgent (24–48 h)']; }
+    function reportReasons() {
+      return ['Spam or scam', 'Offensive or abusive', 'Fake or misleading', 'Contact details or personal info', 'Something else'];
+    }
 
     // ---------- users: display names ----------
     match /users/{userId} {
@@ -180,6 +183,22 @@ service cloud.firestore {
                     && changed().hasOnly(['approved', 'approvedAt'])
                     && newData().approved == true
                     && newData().approvedAt is int;
+    }
+
+    // ---------- reports ----------
+    // Anyone signed in can report a job or bid. Nobody can read, change or delete reports from the app;
+    // the owner reviews them in the Firebase console (Firestore → reports).
+    match /reports/{reportId} {
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['type', 'targetId', 'jobId', 'reason', 'details', 'by', 'status', 'createdAt'])
+                    && newData().type in ['job', 'bid']
+                    && str(newData().targetId, 1, 200)
+                    && str(newData().jobId, 1, 200)
+                    && newData().reason in reportReasons()
+                    && str(newData().get('details', ''), 0, 500)
+                    && newData().by == me()
+                    && newData().status == 'new'
+                    && newData().createdAt is int;
     }
 
     // ---------- receipts ----------

@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workbid Owner's Handbook</title>
+<style>
+  @page {
+    size: Letter;
+    margin: 0.85in 0.8in 0.9in 0.8in;
+    @bottom-left { content: "Workbid Owner's Handbook"; font: 8.5pt "Segoe UI", sans-serif; color: #7a868b; }
+    @bottom-right { content: counter(page); font: 600 8.5pt "Segoe UI", sans-serif; color: #7a868b; }
+  }
+  @page cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+
+  :root {
+    --ink: #1b2429; --muted: #5b676d; --teal: #0d6670; --teal-soft: #dcecec; --teal-ink: #0d3a40;
+    --yellow: #e6b22a; --yellow-soft: #fbf0cf; --bg: #eef0ec; --line: #d8ddd7; --red: #a83a2c; --red-soft: #f7e3df;
+    --green: #2e7a48; --green-soft: #ddefe2;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.55; margin: 0; background: #fff; }
+
+  /* ---------- cover ---------- */
+  .cover { page: cover; height: 11in; background: var(--ink); color: #eef0ec; padding: 1.1in 0.95in; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .cover .mark { width: 92px; height: 92px; border-radius: 20px; background: #121a1e; display: grid; place-items: center; }
+  .cover h1 { font-size: 46pt; line-height: 1.02; margin: 0.55in 0 0.15in; letter-spacing: -1.5px; font-weight: 800; }
+  .cover h1 span { color: var(--yellow); }
+  .cover .sub { font-size: 14pt; color: #b9c3c6; max-width: 5.2in; line-height: 1.45; }
+  .cover .meta { margin-top: auto; display: flex; gap: 0.5in; font-size: 9.5pt; color: #97a3a7; border-top: 1px solid #33404a; padding-top: 0.2in; }
+  .cover .meta b { display: block; color: #eef0ec; font-size: 10.5pt; }
+  .cover .roofline { position: absolute; right: -1.2in; top: 5.6in; width: 5.6in; opacity: 0.08; }
+
+  /* ---------- structure ---------- */
+  .chapter { break-before: page; }
+  .kicker { font: 700 8.5pt "Segoe UI", sans-serif; letter-spacing: 1.6px; text-transform: uppercase; color: var(--teal); margin: 0 0 4px; }
+  h1.ch { font-size: 25pt; line-height: 1.12; margin: 0 0 6px; letter-spacing: -0.6px; font-weight: 800; }
+  .lede { font-size: 12pt; color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
+  h2 { font-size: 14.5pt; margin: 22px 0 6px; letter-spacing: -0.2px; break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 16px 0 4px; break-after: avoid; }
+  p { margin: 0 0 9px; }
+  ul, ol { margin: 0 0 10px; padding-left: 20px; }
+  li { margin: 0 0 4px; }
+  a { color: var(--teal); text-decoration: none; }
+  code, .mono { font-family: "Cascadia Mono", Consolas, monospace; font-size: 9pt; background: #f1f3f0; border: 1px solid #e3e7e2; border-radius: 4px; padding: 0 4px; }
+  pre { font-family: "Cascadia Mono", Consolas, monospace; font-size: 8.6pt; background: #1b2429; color: #e7ece9; border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; margin: 6px 0 12px; break-inside: avoid; line-height: 1.5; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 9pt; }
+  strong { font-weight: 650; }
+
+  /* ---------- callouts ---------- */
+  .box { border-radius: 10px; padding: 11px 14px 4px; margin: 12px 0 14px; break-inside: avoid; border: 1px solid transparent; }
+  .box .t { font-weight: 700; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; display: block; }
+  .tip { background: var(--teal-soft); border-color: #c4dddd; } .tip .t { color: var(--teal); }
+  .warn { background: var(--yellow-soft); border-color: #f0dfa6; } .warn .t { color: #8a6300; }
+  .stop { background: var(--red-soft); border-color: #ecc8c1; } .stop .t { color: var(--red); }
+  .ok { background: var(--green-soft); border-color: #c3e0cc; } .ok .t { color: var(--green); }
+
+  /* ---------- steps ---------- */
+  ol.steps { list-style: none; padding: 0; counter-reset: s; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 0 0 8px 38px; margin: 0 0 6px; break-inside: avoid; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 25px; height: 25px; border-radius: 50%; background: var(--teal); color: #fff; font-weight: 700; font-size: 9.5pt; display: grid; place-items: center; }
+  ol.steps > li > b:first-child { display: block; }
+
+  ul.check { list-style: none; padding-left: 0; }
+  ul.check li { position: relative; padding-left: 24px; }
+  ul.check li::before { content: ""; position: absolute; left: 0; top: 3px; width: 13px; height: 13px; border: 1.6px solid var(--teal); border-radius: 3px; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 9.4pt; break-inside: auto; }
+  th { text-align: left; font-size: 8.3pt; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--ink); padding: 6px 8px; }
+  td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; }
+  tr { break-inside: avoid; }
+  td:first-child { font-weight: 600; }
+
+  /* ---------- screenshots ---------- */
+  .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 12px 0 16px; break-inside: avoid; }
+  .shots.two { grid-template-columns: repeat(2, 1fr); max-width: 4.2in; }
+  .shots.tour { max-width: 4.8in; margin-left: auto; margin-right: auto; }
+  .shot { margin: 0; text-align: center; }
+  .shot img { width: 100%; border-radius: 14px; border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(27,36,41,0.12); }
+  .shot figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 5px; line-height: 1.35; }
+
+  /* ---------- misc ---------- */
+  .toc { columns: 2; column-gap: 0.45in; margin-top: 10px; }
+  .toc div { break-inside: avoid; padding: 7px 0; border-bottom: 1px solid var(--line); display: flex; gap: 10px; }
+  .toc .n { font-weight: 800; color: var(--teal); width: 22px; flex: none; }
+  .toc .d { color: var(--muted); font-size: 9pt; display: block; }
+  .timeline { display: grid; grid-template-columns: 1.1in 1fr; gap: 0; margin: 10px 0 14px; }
+  .timeline div { padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  .timeline .w { font-weight: 800; color: var(--teal); border-right: 3px solid var(--teal); }
+  .script { border-left: 3px solid var(--yellow); background: #fbf8ee; padding: 9px 14px; margin: 8px 0 14px; font-style: italic; break-inside: avoid; border-radius: 0 8px 8px 0; }
+  .script .who { font-style: normal; font-weight: 700; font-size: 8.5pt; letter-spacing: 1px; text-transform: uppercase; color: #8a6300; display: block; margin-bottom: 3px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .pill { display: inline-block; font-size: 8pt; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; padding: 1px 7px; border-radius: 4px; background: var(--teal-soft); color: var(--teal); }
+  .avoid { break-inside: avoid; }
+  .template { border: 1px dashed #b9c0ba; border-radius: 8px; padding: 12px 16px; font-size: 9.4pt; margin: 8px 0 14px; }
+  .template h4 { margin: 10px 0 2px; font-size: 10pt; }
+  .fill { background: var(--yellow-soft); padding: 0 3px; border-radius: 3px; font-weight: 600; }
+
+  /* ---------- plain-English quick start ---------- */
+  .stage { border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px 6px; margin: 0 0 14px; }
+  .stage-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; break-after: avoid; }
+  .stage-h .num { font-weight: 800; font-size: 9pt; letter-spacing: 1.4px; text-transform: uppercase; color: #fff; background: var(--ink); border-radius: 5px; padding: 2px 8px; }
+  .stage-h .name { font-weight: 800; font-size: 13pt; }
+  .stage-h .time { margin-left: auto; font-size: 8.5pt; color: var(--muted); }
+  ol.tiny { list-style: none; padding: 0; margin: 0; counter-reset: t; }
+  ol.tiny > li { counter-increment: t; display: grid; grid-template-columns: 26px 1fr; gap: 0 8px; padding: 6px 0; border-top: 1px dashed #e2e6e1; break-inside: avoid; }
+  ol.tiny > li:first-child { border-top: 0; }
+  ol.tiny > li::before { content: counter(t); grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; border: 1.6px solid var(--teal); color: var(--teal); font-weight: 700; font-size: 9pt; display: grid; place-items: center; margin-top: 1px; }
+  ol.tiny .do { font-weight: 600; }
+  ol.tiny .see { font-size: 9pt; color: var(--green); }
+  ol.tiny .see::before { content: "✓ You'll know it worked: "; font-weight: 700; }
+  .inshort { background: var(--bg); border-radius: 10px; padding: 10px 14px 4px; margin: 0 0 16px; break-inside: avoid; }
+  .inshort .t { font-weight: 800; font-size: 8.5pt; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink); display: block; margin-bottom: 3px; }
+  .inshort ul { margin-bottom: 6px; }
+
+  /* ---------- diagrams ---------- */
+  figure.dia { margin: 10px 0 16px; break-inside: avoid; }
+  figure.dia svg { width: 100%; height: auto; display: block; }
+  figure.dia figcaption { font-size: 8.8pt; color: var(--muted); margin-top: 4px; }
+  svg text { font-family: "Segoe UI", system-ui, sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- =========================================================== COVER -->
+<section class="cover">
+  <div class="mark">
+    <svg width="58" height="58" viewBox="0 0 108 108"><path d="M24,56 L54,30 L84,56" fill="none" stroke="#E6B22A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M34,52 L34,80 L74,80 L74,52" fill="none" stroke="#EEF0EC" stroke-width="8" stroke-linejoin="round"/></svg>
+  </div>
+  <h1>Workbid<br><span>Owner's Handbook</span></h1>
+  <p class="sub">Everything you need to take over Workbid, put it on Google Play, find your first homeowners and contractors, and keep it running. Written for someone who has never launched an app.</p>
+  <svg class="roofline" viewBox="0 0 108 108"><path d="M8,60 L54,18 L100,60" fill="none" stroke="#E6B22A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div class="meta">
+    <div><b>App version</b>1.1 (build 2)</div>
+    <div><b>Prepared</b>November 2026</div>
+    <div><b>Platform</b>Android · Firebase</div>
+  </div>
+</section>
+
+<!-- =========================================================== HOW TO USE -->
+<section class="chapter">
+  <p class="kicker">Start here</p>
+  <h1 class="ch">How to use this handbook</h1>
+  <p class="lede">You don't need to read this cover to cover. Turn the page to the <strong>Quick start</strong>: the whole launch as small, one-action steps you can tick off. Come back to the chapters when you want the details. Every chapter starts with an "In short" box.</p>
+
+  <div class="toc">
+    <div><span class="n">★</span><span>Quick start<span class="d">The whole launch in plain English</span></span></div>
+    <div><span class="n">1</span><span>What you're getting<span class="d">The app, the files, what it costs</span></span></div>
+    <div><span class="n">2</span><span>Your accounts<span class="d">Taking ownership safely</span></span></div>
+    <div><span class="n">3</span><span>Set up your computer<span class="d">Run the app on your phone</span></span></div>
+    <div><span class="n">4</span><span>Before you launch<span class="d">The must-dos Google checks</span></span></div>
+    <div><span class="n">5</span><span>Launch on Google Play<span class="d">Step by step, start to finish</span></span></div>
+    <div><span class="n">6</span><span>Running Workbid<span class="d">Daily and weekly jobs</span></span></div>
+    <div><span class="n">7</span><span>Getting customers<span class="d">Contractors first, then homeowners</span></span></div>
+    <div><span class="n">8</span><span>Business basics<span class="d">Registration, tax, privacy, liability</span></span></div>
+    <div><span class="n">9</span><span>Changing the app<span class="d">Common edits and getting help</span></span></div>
+    <div><span class="n">10</span><span>Limits and next steps<span class="d">What to build next, in order</span></span></div>
+    <div><span class="n">11</span><span>Troubleshooting<span class="d">When something goes wrong</span></span></div>
+    <div><span class="n">A</span><span>Templates and checklists<span class="d">Privacy policy, store text, launch list</span></span></div>
+  </div>
+
+  <h2>Your first 30 days</h2>
+  <p>Google makes new developers run a closed test for 14 days before the public can download the app, so the launch takes about a month. Use that time to line up your first contractors.</p>
+  <div class="timeline">
+    <div class="w">Days 1–2</div><div><strong>Accounts.</strong> Business Google account, take ownership of Firebase, open your Play developer account (identity checks can take a few days, so start early). Chapter 2.</div>
+    <div class="w">Days 3–5</div><div><strong>Set up and test.</strong> Install Android Studio, run Workbid on your phone, try every screen with the demo data. Chapter 3.</div>
+    <div class="w">Days 5–7</div><div><strong>Must-dos.</strong> Domain and support email, privacy policy, account-deletion page, fill in the app settings, reviewer account. Chapter 4.</div>
+    <div class="w">Days 7–8</div><div><strong>First upload.</strong> Make the release file, fill in the store listing and app content forms, start internal testing. Chapter 5.</div>
+    <div class="w">Days 8–22</div><div><strong>Closed test.</strong> At least 12 testers for 14 days in a row. Meanwhile, sign up your first 15–20 contractors. Chapters 5 and 7.</div>
+    <div class="w">Days 22–30</div><div><strong>Go live.</strong> Apply for production, pass review, announce to homeowners in your launch area. Chapters 5 and 7.</div>
+  </div>
+
+  <div class="box tip"><span class="t">How the boxes work</span>
+    <p><b>Tip</b> boxes save you time. <b>Watch out</b> boxes are where beginners usually trip. <b>Stop</b> boxes are things that can lose data or money, so read them twice.</p>
+  </div>
+
+  <div class="box warn"><span class="t">Things change</span>
+    <p>Google's rules, prices and screens change often. Everything here was checked in November 2026. If a button has moved, look for the same words nearby, or search the Play Console Help Center for the section name.</p>
+  </div>
+</section>
+
+<!-- =========================================================== QUICK START -->
+<section class="chapter">
+  <p class="kicker">Quick start</p>
+  <h1 class="ch">The whole launch, in plain English</h1>
+  <p class="lede">Every step below is one small action. Do them in order and tick them off. If a step says "see chapter X", the details are there, but you can usually do it from this page alone.</p>
+
+  <div class="box tip"><span class="t">Before you begin</span>
+    <p>You need: a computer (Windows or Mac), an Android phone, a credit card for the US$25 Google fee, your government ID, and about an hour on the first day. You don't need to know how to code.</p>
+  </div>
+
+  <figure class="dia">
+    <svg viewBox="0 0 700 150" role="img" aria-label="Launch roadmap in seven stages over about thirty days">
+      <line x1="50" y1="52" x2="650" y2="52" stroke="#d8ddd7" stroke-width="4" stroke-linecap="round"/>
+      <line x1="50" y1="52" x2="420" y2="52" stroke="#0d6670" stroke-width="4" stroke-linecap="round"/>
+      <rect x="420" y="40" width="160" height="24" rx="12" fill="#fbf0cf" stroke="#e6b22a" stroke-width="1.5"/>
+      <text x="500" y="56" text-anchor="middle" font-size="10" font-weight="700" fill="#8a6300">14-day closed test</text>
+      <g font-size="10.5" text-anchor="middle" fill="#1b2429">
+        <g><circle cx="50" cy="52" r="15" fill="#0d6670"/><text x="50" y="56.5" fill="#fff" font-weight="800" font-size="12">1</text>
+          <text x="50" y="92" font-weight="700">Accounts</text><text x="50" y="107" fill="#5b676d" font-size="9.5">Day 1</text></g>
+        <g><circle cx="150" cy="52" r="15" fill="#0d6670"/><text x="150" y="56.5" fill="#fff" font-weight="800" font-size="12">2</text>
+          <text x="150" y="92" font-weight="700">App on phone</text><text x="150" y="107" fill="#5b676d" font-size="9.5">Day 2</text></g>
+        <g><circle cx="250" cy="52" r="15" fill="#0d6670"/><text x="250" y="56.5" fill="#fff" font-weight="800" font-size="12">3</text>
+          <text x="250" y="92" font-weight="700">Paperwork</text><text x="250" y="107" fill="#5b676d" font-size="9.5">Days 3–5</text></g>
+        <g><circle cx="335" cy="52" r="15" fill="#0d6670"/><text x="335" y="56.5" fill="#fff" font-weight="800" font-size="12">4</text>
+          <text x="335" y="92" font-weight="700">Upload file</text><text x="335" y="107" fill="#5b676d" font-size="9.5">Day 6</text></g>
+        <g><circle cx="410" cy="52" r="15" fill="#0d6670"/><text x="410" y="56.5" fill="#fff" font-weight="800" font-size="12">5</text>
+          <text x="410" y="92" font-weight="700">Store page</text><text x="410" y="107" fill="#5b676d" font-size="9.5">Day 7</text></g>
+        <g><circle cx="590" cy="52" r="15" fill="#fff" stroke="#0d6670" stroke-width="3"/><text x="590" y="56.5" fill="#0d6670" font-weight="800" font-size="12">6</text>
+          <text x="590" y="92" font-weight="700">Testers</text><text x="590" y="107" fill="#5b676d" font-size="9.5">Days 8–22</text></g>
+        <g><circle cx="650" cy="52" r="17" fill="#e6b22a"/><text x="650" y="57" fill="#1b2429" font-weight="800" font-size="12">7</text>
+          <text x="650" y="92" font-weight="800">Live!</text><text x="650" y="107" fill="#5b676d" font-size="9.5">~Day 30</text></g>
+      </g>
+      <text x="50" y="140" font-size="9.5" fill="#5b676d">Recruit contractors (chapter 7) during stages 5–6, so they're ready on launch day.</text>
+    </svg>
+    <figcaption>The seven stages below, on one line. Stage 6 is mostly waiting, so use that time to sign up contractors.</figcaption>
+  </figure>
+
+  <div class="stage">
+    <div class="stage-h"><span class="num">Stage 1</span><span class="name">Make your accounts</span><span class="time">Day 1 · 30 min</span></div>
+    <ol class="tiny">
+      <li><span class="do">Go to gmail.com and create a new Gmail just for the business.</span><span class="see">you can sign in to it, e.g. workbid.app@gmail.com.</span></li>
+      <li><span class="do">Open myaccount.google.com → Security → turn on 2-Step Verification.</span><span class="see">Google texts you a code when you sign in on a new device.</span></li>
+      <li><span class="do">Send David the new Gmail address and ask him to add it as an Owner of the Workbid Firebase project.</span><span class="see">you get an email invitation from Firebase.</span></li>
+      <li><span class="do">Click the link in that email and accept.</span><span class="see">console.firebase.google.com shows a "Workbid" project card.</span></li>
+      <li><span class="do">Go to play.google.com/console, sign in with the business Gmail, and choose "Yourself" (personal) or "An organization".</span><span class="see">you see a form asking for your developer name.</span></li>
+      <li><span class="do">Type "Workbid" as the developer name, fill in your contact details, and pay the US$25.</span><span class="see">you get a receipt email from Google.</span></li>
+      <li><span class="do">Upload your ID when Google asks for it.</span><span class="see">the Console says your identity is being verified. This takes a few days, so carry on meanwhile.</span></li>
+    </ol>
+  </div>
+
+  <div class="stage">
+    <div class="stage-h"><span class="num">Stage 2</span><span class="name">Get the app running on your phone</span><span class="time">Day 2 · 1 hour</span></div>
+    <ol class="tiny">
+      <li><span class="do">Download Android Studio from developer.android.com/studio and install it. Click "Next" on every screen.</span><span class="see">Android Studio opens with a "Welcome" window.</span></li>
+      <li><span class="do">Click "Open" and choose the Workbid folder David gave you.</span><span class="see">the project opens and a progress bar runs at the bottom.</span></li>
+      <li><span class="do">Wait. The first time it downloads a lot (5–15 minutes). Make a coffee.</span><span class="see">the progress bar disappears and there's no red error.</span></li>
+      <li><span class="do">On your phone: Settings → About phone → tap "Build number" 7 times.</span><span class="see">the phone says "You are now a developer!"</span></li>
+      <li><span class="do">On your phone: Settings → System → Developer options → turn on "USB debugging".</span><span class="see">the switch is on.</span></li>
+      <li><span class="do">Plug your phone into the computer with a USB cable. Tap "Allow" on the phone.</span><span class="see">your phone's name appears at the top of Android Studio.</span></li>
+      <li><span class="do">Click the green ▶ (Run) button at the top of Android Studio.</span><span class="see">Workbid opens on your phone with the sign-in screen.</span></li>
+      <li><span class="do">Tap "New here? Create an account" and make yourself an account.</span><span class="see">you see "Welcome" and the My jobs screen.</span></li>
+    </ol>
+  </div>
+
+  <div class="stage">
+    <div class="stage-h"><span class="num">Stage 3</span><span class="name">Do the paperwork Google checks</span><span class="time">Days 3–5 · 2 hours</span></div>
+    <ol class="tiny">
+      <li><span class="do">Search "Workbid" on the Google Play Store to check nobody else uses the name.</span><span class="see">no similar home-services app comes up. If one does, pick a new name now.</span></li>
+      <li><span class="do">Buy a web address (e.g. workbid.ca) from a site like Namecheap or Porkbun.</span><span class="see">you get a confirmation email for your domain.</span></li>
+      <li><span class="do">In the domain site's settings, turn on "email forwarding" from help@yourdomain to your business Gmail.</span><span class="see">an email you send to help@yourdomain arrives in your Gmail.</span></li>
+      <li><span class="do">Go to sites.google.com → "Blank site". Make three pages: Privacy, Delete account, Terms.</span><span class="see">the left panel lists the three pages.</span></li>
+      <li><span class="do">Copy each template from Appendix A onto its page and replace the yellow parts with your details.</span><span class="see">no yellow placeholder text is left.</span></li>
+      <li><span class="do">Click "Publish" (top right) and copy the web address of each page.</span><span class="see">the pages open in a private/incognito browser window.</span></li>
+      <li><span class="do">In Android Studio, open AppConfig.kt (press Shift twice and type "AppConfig"). Paste your email and the three links between the quote marks.</span><span class="see">four lines that each have something between the quotes.</span></li>
+      <li><span class="do">In the Firebase console: Firestore Database → Rules tab. Delete everything, paste the whole firestore.rules file, click "Publish".</span><span class="see">a green "Rules published" message.</span></li>
+      <li><span class="do">In the Firebase console: Authentication → Users → "Add user". Make a reviewer login (e.g. playreview@yourdomain.ca) with a strong password. Save it in your password manager.</span><span class="see">the new user appears in the list.</span></li>
+      <li><span class="do">Sign in to the app on your phone with the reviewer login and post one small sample job.</span><span class="see">the job shows on My jobs.</span></li>
+    </ol>
+  </div>
+
+  <div class="stage">
+    <div class="stage-h"><span class="num">Stage 4</span><span class="name">Make the file you upload</span><span class="time">Day 6 · 20 min</span></div>
+    <ol class="tiny">
+      <li><span class="do">In Android Studio: top menu Build → "Generate Signed App Bundle or APK…"</span><span class="see">a small window opens.</span></li>
+      <li><span class="do">Choose "Android App Bundle" → Next.</span><span class="see">it asks for a "Key store path".</span></li>
+      <li><span class="do">Click "Create new…". Save the key in your Documents folder as workbid-upload.jks. Make up two strong passwords, alias "upload", and fill in your name.</span><span class="see">the window fills in the key details.</span></li>
+      <li><span class="do">Save the .jks file and both passwords in your password manager AND on a USB stick. Don't skip this.</span><span class="see">you could rebuild the key details from your password manager alone.</span></li>
+      <li><span class="do">Click Next → choose "release" → Create.</span><span class="see">a pop-up says "Generate Signed Bundle: App bundle(s) generated successfully".</span></li>
+      <li><span class="do">Click "locate" in that pop-up.</span><span class="see">a folder opens with a file called app-release.aab. This is what you upload.</span></li>
+    </ol>
+  </div>
+
+  <div class="stage">
+    <div class="stage-h"><span class="num">Stage 5</span><span class="name">Set up the store page</span><span class="time">Day 7 · 1–2 hours</span></div>
+    <ol class="tiny">
+      <li><span class="do">Play Console → "Create app". Name: Workbid. App. Free. Tick the boxes → Create app.</span><span class="see">you land on the app's Dashboard with a setup checklist.</span></li>
+      <li><span class="do">Dashboard → "Set up your store listing". Paste the name, short and full descriptions from Appendix A.</span><span class="see">the text boxes show green character counts, not red.</span></li>
+      <li><span class="do">Upload the icon, feature graphic and phone screenshots from the store-assets folder. Save.</span><span class="see">the listing preview shows your pictures.</span></li>
+      <li><span class="do">Go back to the Dashboard and work down "Provide information about your app". For each item, use the answers in chapter 5, step 5.</span><span class="see">each item gets a green tick.</span></li>
+      <li><span class="do">For "Data safety", copy the answers from Appendix A exactly.</span><span class="see">Data safety shows a green tick.</span></li>
+      <li><span class="do">For "App access", choose "restricted" and paste the reviewer login from Stage 3.</span><span class="see">App access shows a green tick.</span></li>
+    </ol>
+  </div>
+
+  <div class="stage">
+    <div class="stage-h"><span class="num">Stage 6</span><span class="name">Test with real people</span><span class="time">Days 8–22</span></div>
+    <ol class="tiny">
+      <li><span class="do">Play Console → Testing → Internal testing → "Create new release". Upload app-release.aab → Save → Review → "Start rollout".</span><span class="see">the release status says "Available to internal testers".</span></li>
+      <li><span class="do">Testers tab → add your own Gmail → copy the "join on the web" link → open it on your phone → install.</span><span class="see">Workbid installs from the Play Store on your phone.</span></li>
+      <li><span class="do">Go to groups.google.com and create a group called "Workbid testers".</span><span class="see">you have a group email address like workbid-testers@googlegroups.com.</span></li>
+      <li><span class="do">Play Console → Testing → Closed testing → create a release with the same .aab → under Testers, add the group's email.</span><span class="see">the closed track shows "In review" and then "Available".</span></li>
+      <li><span class="do">Invite 15–20 people to the Google Group (contractors you're recruiting, friends, family) and send them the opt-in link.</span><span class="see">the Dashboard counts at least 12 opted-in testers.</span></li>
+      <li><span class="do">Ask testers to use the app a few times a week: post a job, place a bid. Note what confuses them.</span><span class="see">after 14 days in a row, the Dashboard offers "Apply for production".</span></li>
+    </ol>
+    <p class="small muted">Organization accounts can skip the 14-day wait, but a week of testing is still worth it.</p>
+  </div>
+
+  <div class="stage">
+    <div class="stage-h"><span class="num">Stage 7</span><span class="name">Go live</span><span class="time">Days 22–30</span></div>
+    <ol class="tiny">
+      <li><span class="do">Click "Apply for production" and answer the questions about testing (how many testers, what you fixed).</span><span class="see">Google emails you that production access was granted (often within a week).</span></li>
+      <li><span class="do">Production → "Create new release" → upload the latest .aab → write "First release" → Save.</span><span class="see">the release shows as a draft.</span></li>
+      <li><span class="do">Countries/regions → add Canada only.</span><span class="see">Canada is the only country listed.</span></li>
+      <li><span class="do">Review release → "Start rollout to production".</span><span class="see">status says "In review". A few days later Google emails you that Workbid is live.</span></li>
+      <li><span class="do">Search Workbid on the Play Store from your phone.</span><span class="see">your app is there. Share the link! Chapter 7 explains how to find customers.</span></li>
+    </ol>
+  </div>
+
+  <div class="box ok"><span class="t">After launch, every week</span>
+    <p>Check reports in Firebase (Firestore → reports), answer Play Store reviews, and text a contractor whenever a job goes 24 hours without a bid. Chapter 6 has the full checklist.</p>
+  </div>
+</section>
+
+<!-- =========================================================== 1 -->
+<section class="chapter">
+  <p class="kicker">Chapter 1</p>
+  <h1 class="ch">What you're getting</h1>
+  <p class="lede">Workbid is a local marketplace for home jobs. Homeowners post what needs doing; contractors send bids with a price, how long it takes, and when they can come. Accepting a bid books the date, and both sides track the job to done in the same app.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Workbid lets homeowners post jobs and contractors bid on them.</li><li>One account can be both: there's a switch at the top.</li><li>It's free to run at first. Google charges US$25 once to publish.</li></ul></div>
+
+  <h2>How it works</h2>
+  <div class="cols">
+    <div>
+      <h3>For homeowners</h3>
+      <ol>
+        <li>Post a job: trade, neighbourhood, details, optional budget, preferred date.</li>
+        <li>Compare bids side by side: price, days of work, arrival date and window, message.</li>
+        <li>Accept one. The job is booked and other bids close.</li>
+        <li>Approve the contractor's work orders (line items plus GST) and log receipts.</li>
+        <li>Mark the job complete.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>For contractors</h3>
+      <ol>
+        <li>Browse open jobs, filter by trade, search by area.</li>
+        <li>Send a bid. Edit or withdraw it until the homeowner chooses.</li>
+        <li>Won jobs land in the Schedule tab with date and arrival window.</li>
+        <li>Tap <em>Start work</em> on the day, send a work order for approval.</li>
+        <li>Mark it complete.</li>
+      </ol>
+    </div>
+  </div>
+  <p>One account does both: a switch at the top of the home screen flips between Homeowner and Contractor views.</p>
+
+  <figure class="dia">
+    <svg viewBox="0 0 700 215" role="img" aria-label="Job lifecycle: open for bids, booked, in progress, complete">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1b2429"/></marker>
+      </defs>
+      <!-- stage boxes -->
+      <g font-size="12" font-weight="800" text-anchor="middle">
+        <rect x="8" y="62" width="140" height="56" rx="12" fill="#fbf0cf" stroke="#e6b22a" stroke-width="1.5"/>
+        <text x="78" y="88" fill="#6b4d00">OPEN</text><text x="78" y="105" font-size="10" font-weight="600" fill="#6b4d00">for bids</text>
+        <rect x="190" y="62" width="140" height="56" rx="12" fill="#dcecec" stroke="#0d6670" stroke-width="1.5"/>
+        <text x="260" y="88" fill="#0d3a40">BOOKED</text><text x="260" y="105" font-size="10" font-weight="600" fill="#0d3a40">date confirmed</text>
+        <rect x="372" y="62" width="140" height="56" rx="12" fill="#f6e6d2" stroke="#a8641a" stroke-width="1.5"/>
+        <text x="442" y="88" fill="#7a4710">IN PROGRESS</text><text x="442" y="105" font-size="10" font-weight="600" fill="#7a4710">work underway</text>
+        <rect x="554" y="62" width="140" height="56" rx="12" fill="#ddefe2" stroke="#2e7a48" stroke-width="1.5"/>
+        <text x="624" y="88" fill="#1f5a33">COMPLETE</text><text x="624" y="105" font-size="10" font-weight="600" fill="#1f5a33">records kept</text>
+      </g>
+      <!-- arrows -->
+      <g stroke="#1b2429" stroke-width="1.8" marker-end="url(#ar)">
+        <line x1="150" y1="90" x2="186" y2="90"/><line x1="332" y1="90" x2="368" y2="90"/><line x1="514" y1="90" x2="550" y2="90"/>
+      </g>
+      <!-- who moves it -->
+      <g font-size="9.5" text-anchor="middle" fill="#1b2429" font-weight="700">
+        <text x="169" y="46">Homeowner</text><text x="169" y="57" font-weight="400">accepts a bid</text>
+        <text x="351" y="46">Contractor</text><text x="351" y="57" font-weight="400">taps Start work</text>
+        <text x="533" y="46">Either one</text><text x="533" y="57" font-weight="400">marks complete</text>
+      </g>
+      <!-- what happens in each stage -->
+      <g font-size="9.5" fill="#5b676d">
+        <text x="14" y="140">• Contractors send bids</text><text x="14" y="154">• Edit or withdraw bids</text><text x="14" y="168">• Homeowner compares</text>
+        <text x="196" y="140">• Shows in both Schedules</text><text x="196" y="154">• Either can move the date</text><text x="196" y="168">• Other bids close</text>
+        <text x="378" y="140">• Contractor sends work</text><text x="378" y="152">  orders</text><text x="378" y="166">• Homeowner approves</text><text x="378" y="180">• Both log receipts</text>
+        <text x="560" y="140">• Nothing more can be</text><text x="560" y="152">  added</text><text x="560" y="166">• History stays for both</text>
+      </g>
+      <text x="8" y="205" font-size="9.5" fill="#a83a2c" font-weight="600">Jobs only move forward. A booking can't be undone in the app. Only Open jobs can be deleted.</text>
+    </svg>
+    <figcaption>Every job goes through these four stages. The coloured labels match the status pills in the app.</figcaption>
+  </figure>
+
+  <h2>A quick tour</h2>
+  <p>These are real screens from the app, filled with the demo data from chapter 3.</p>
+  <div class="shots tour">
+    <figure class="shot"><img src="images/01-signin.png"><figcaption><b>Sign in.</b> "Forgot password?" emails a reset link.</figcaption></figure>
+    <figure class="shot"><img src="images/02-myjobs.png"><figcaption><b>Homeowner home.</b> Jobs grouped by what needs attention. Red badges count things to do.</figcaption></figure>
+    <figure class="shot"><img src="images/03-job-next.png"><figcaption><b>Job page.</b> The progress bar and yellow card always say what happens next.</figcaption></figure>
+  </div>
+  <div class="shots tour">
+    <figure class="shot"><img src="images/03-job-bids.png"><figcaption><b>Comparing bids.</b> Lowest price first, with date, window and message.</figcaption></figure>
+    <figure class="shot"><img src="images/05-findwork.png"><figcaption><b>Contractor home.</b> Search, filter by trade, see bid counts.</figcaption></figure>
+    <figure class="shot"><img src="images/06-bidform.png"><figcaption><b>Placing a bid.</b> Shows the total with GST as you type.</figcaption></figure>
+  </div>
+  <div class="shots tour">
+    <figure class="shot"><img src="images/07-schedule.png"><figcaption><b>Schedule.</b> Today in yellow, then the next 7 days and later.</figcaption></figure>
+    <figure class="shot"><img src="images/08-workorder.png"><figcaption><b>Work order.</b> Line items, GST and total, approved with one tap.</figcaption></figure>
+    <figure class="shot"><img src="images/09-account.png"><figcaption><b>Account.</b> Help, password change, sign out, delete account.</figcaption></figure>
+  </div>
+
+  <h2>What's in the project folder</h2>
+  <table>
+    <tr><th>File or folder</th><th>What it is</th><th>Do you touch it?</th></tr>
+    <tr><td><code>app/</code></td><td>The Android app's source code (Kotlin).</td><td>Only for the edits in chapter 9.</td></tr>
+    <tr><td><code>app/…/AppConfig.kt</code></td><td>Your support email and web links, shown in the app.</td><td><strong>Yes</strong>, before launch.</td></tr>
+    <tr><td><code>app/google-services.json</code></td><td>Connects the app to your Firebase project. Not secret, but specific to your project.</td><td>Only if you switch Firebase projects.</td></tr>
+    <tr><td><code>firestore.rules</code></td><td>The security rules: who can read and change what in the database.</td><td>Publish it once (chapter 4). Change only with help.</td></tr>
+    <tr><td><code>rules-test/</code></td><td>Automated tests for the rules, plus a local test server with demo data.</td><td>Use it to test safely (chapter 3).</td></tr>
+    <tr><td><code>store-assets/</code></td><td>Icon, feature graphic and screenshots ready for the Play listing.</td><td>Upload them in chapter 5.</td></tr>
+    <tr><td><code>docs/</code></td><td>This handbook (HTML source and images).</td><td>Edit if you like.</td></tr>
+    <tr><td><code>AUDIT.md</code></td><td>The technical review of the app and what's been fixed.</td><td>Give to any developer you hire.</td></tr>
+  </table>
+
+  <h2>What it costs to run</h2>
+  <table>
+    <tr><th>Item</th><th>Cost</th><th>Notes</th></tr>
+    <tr><td>Google Play developer account</td><td>US$25 once</td><td>Paid when you sign up.</td></tr>
+    <tr><td>Firebase (database and sign-in)</td><td>Free to start</td><td>The free "Spark" plan covers early use. See the limits below.</td></tr>
+    <tr><td>Domain name (e.g. workbid.ca)</td><td>About $15–30 a year</td><td>Optional but makes you look real, and gives you a support email.</td></tr>
+    <tr><td>Email on your domain</td><td>$0–10 a month</td><td>Free forwarding from your registrar, or Google Workspace.</td></tr>
+    <tr><td>Privacy policy and pages</td><td>$0</td><td>Google Sites hosts them free (chapter 4).</td></tr>
+    <tr><td>Business registration (BC)</td><td>Under $100 once</td><td>Optional at first; see chapter 8.</td></tr>
+  </table>
+  <div class="box warn"><span class="t">Watch out: free limits</span>
+    <p>Right now the app downloads every job and bid each time someone opens it. On the free plan Firestore allows 50,000 document reads a day. With 200 jobs and 600 bids, each app open reads about 800 documents, so roughly 60 app opens a day would use it up. When that happens the app stops loading until midnight Pacific. That's fine for the first weeks. Before you have more than a few dozen active users, have a developer make the change described in chapter 10 (item 2). It's the most important technical upgrade.</p>
+  </div>
+</section>
+
+<!-- =========================================================== 2 -->
+<section class="chapter">
+  <p class="kicker">Chapter 2</p>
+  <h1 class="ch">Your accounts</h1>
+  <p class="lede">Workbid lives on a few Google services. Everything should be owned by <em>you</em> (or your business), not by David, so you're never locked out of your own app.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Make a separate Gmail for the business and lock it with 2-Step Verification.</li><li>David makes you the Owner of the Firebase project (the database).</li><li>Open your Google Play developer account now; ID checks take days.</li></ul></div>
+
+  <figure class="dia">
+    <svg viewBox="0 0 700 270" role="img" aria-label="How Workbid's parts connect: phones, Firebase, security rules, the owner, and Google Play">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b676d"/></marker>
+      </defs>
+      <!-- phones -->
+      <g>
+        <rect x="14" y="30" width="78" height="124" rx="14" fill="#1b2429"/><rect x="21" y="44" width="64" height="96" rx="6" fill="#eef0ec"/>
+        <text x="53" y="88" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1b2429">Workbid</text><text x="53" y="101" text-anchor="middle" font-size="8.5" fill="#5b676d">Homeowner</text>
+        <rect x="104" y="30" width="78" height="124" rx="14" fill="#1b2429"/><rect x="111" y="44" width="64" height="96" rx="6" fill="#eef0ec"/>
+        <text x="143" y="88" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1b2429">Workbid</text><text x="143" y="101" text-anchor="middle" font-size="8.5" fill="#5b676d">Contractor</text>
+        <text x="98" y="174" text-anchor="middle" font-size="10" font-weight="700" fill="#1b2429">People's phones</text>
+        <text x="98" y="188" text-anchor="middle" font-size="9" fill="#5b676d">the app you built</text>
+      </g>
+      <!-- firebase cloud -->
+      <rect x="250" y="14" width="300" height="190" rx="18" fill="#f5f6f3" stroke="#d8ddd7" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="400" y="36" text-anchor="middle" font-size="11" font-weight="800" fill="#1b2429">Firebase (Google's cloud)</text>
+      <rect x="268" y="52" width="38" height="134" rx="8" fill="#a83a2c"/>
+      <text x="287" y="119" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff" transform="rotate(-90 287 119)">Security rules</text>
+      <rect x="322" y="52" width="212" height="54" rx="10" fill="#fff" stroke="#0d6670" stroke-width="1.5"/>
+      <text x="334" y="74" font-size="10.5" font-weight="800" fill="#0d6670">Authentication</text>
+      <text x="334" y="90" font-size="9" fill="#5b676d">emails, passwords, sign-ins</text>
+      <rect x="322" y="116" width="212" height="70" rx="10" fill="#fff" stroke="#0d6670" stroke-width="1.5"/>
+      <text x="334" y="138" font-size="10.5" font-weight="800" fill="#0d6670">Firestore database</text>
+      <text x="334" y="154" font-size="9" fill="#5b676d">jobs · bids · work orders</text>
+      <text x="334" y="168" font-size="9" fill="#5b676d">receipts · users · reports</text>
+      <!-- phone <-> rules -->
+      <line x1="188" y1="92" x2="262" y2="92" stroke="#5b676d" stroke-width="1.8" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+      <text x="225" y="84" text-anchor="middle" font-size="8.5" fill="#5b676d">live data</text>
+      <!-- you -->
+      <circle cx="636" cy="66" r="20" fill="#e6b22a"/><circle cx="636" cy="60" r="7" fill="#1b2429"/><path d="M623,79 Q636,66 649,79" fill="#1b2429"/>
+      <text x="636" y="104" text-anchor="middle" font-size="10" font-weight="800" fill="#1b2429">You</text>
+      <text x="636" y="118" text-anchor="middle" font-size="9" fill="#5b676d">Firebase console</text>
+      <line x1="612" y1="120" x2="540" y2="140" stroke="#5b676d" stroke-width="1.8" marker-end="url(#ar2)"/>
+      <line x1="612" y1="76" x2="540" y2="78" stroke="#5b676d" stroke-width="1.8" marker-end="url(#ar2)"/>
+      <text x="600" y="150" text-anchor="middle" font-size="8.5" fill="#5b676d">read, moderate,</text>
+      <text x="600" y="161" text-anchor="middle" font-size="8.5" fill="#5b676d">publish rules</text>
+      <!-- play -->
+      <rect x="14" y="214" width="168" height="44" rx="10" fill="#1b2429"/>
+      <path d="M30,226 L30,246 L46,236 z" fill="#e6b22a"/>
+      <text x="56" y="233" font-size="10.5" font-weight="800" fill="#eef0ec">Google Play</text>
+      <text x="56" y="248" font-size="9" fill="#97a3a7">people install from here</text>
+      <line x1="98" y1="212" x2="98" y2="194" stroke="#5b676d" stroke-width="1.8" marker-end="url(#ar2)"/>
+      <line x1="612" y1="236" x2="188" y2="236" stroke="#5b676d" stroke-width="1.8" stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+      <text x="400" y="230" text-anchor="middle" font-size="8.5" fill="#5b676d">you upload new versions through the Play Console</text>
+      <text x="400" y="252" text-anchor="middle" font-size="8.5" fill="#a83a2c" font-weight="600">The rules check every read and write from the app. The console skips them, so be careful there.</text>
+    </svg>
+    <figcaption>Each piece belongs to an account you'll own. The app on people's phones only talks to Firebase, through the security rules.</figcaption>
+  </figure>
+
+  <h2>The accounts you need</h2>
+  <table>
+    <tr><th>Account</th><th>Used for</th><th>Who owns it</th></tr>
+    <tr><td>A Google account for the business</td><td>Owns Firebase and the Play Console. Create a new one, e.g. <span class="mono">workbid.app@gmail.com</span>, rather than using your personal one.</td><td>You</td></tr>
+    <tr><td>Firebase project</td><td>The database (Firestore) and sign-in (Authentication).</td><td>Transfer from David to you</td></tr>
+    <tr><td>Google Play Console</td><td>Publishing the app.</td><td>You, created fresh</td></tr>
+    <tr><td>Domain registrar</td><td>Your web address and support email.</td><td>You</td></tr>
+    <tr><td>Password manager</td><td>Keeping all of the above safe (Bitwarden is free, 1Password is excellent).</td><td>You</td></tr>
+  </table>
+
+  <div class="box stop"><span class="t">Stop: protect the business account</span>
+    <p>Turn on 2-Step Verification for the business Google account straight away (myaccount.google.com → Security). If someone gets into it they can delete your app and your data. Store the recovery codes in your password manager.</p>
+  </div>
+
+  <h2>Take ownership of the Firebase project</h2>
+  <p>David created the Firebase project. He'll add you as an Owner. Then you'll remove him (or keep him as a helper with fewer permissions).</p>
+  <ol class="steps">
+    <li><b>David adds you.</b> In the <a>Firebase console</a> (console.firebase.google.com), he opens the Workbid project → gear icon → <em>Users and permissions</em> → <em>Add member</em>, enters your business Gmail and picks the role <strong>Owner</strong>.</li>
+    <li><b>Accept the invite.</b> Open the email on the business account and accept. You'll now see Workbid in your Firebase console.</li>
+    <li><b>Check you can see the data.</b> Click <em>Firestore Database</em> and <em>Authentication</em> in the left menu. You should see the collections and the user list.</li>
+    <li><b>Decide on David's access.</b> When you're comfortable, change David's role to <em>Editor</em> or <em>Viewer</em> if he'll keep helping, or remove him. Only Owners can delete the project, so keep at least two Owner logins you control (for example the business account and your personal one).</li>
+  </ol>
+  <div class="box tip"><span class="t">Tip: billing</span>
+    <p>The project is on the free Spark plan, which needs no credit card. If you ever upgrade to the pay-as-you-go Blaze plan, it's linked to whoever adds the card. Make sure that's you, and set a budget alert at the same time (chapter 6).</p>
+  </div>
+
+  <h2>Open your Google Play developer account early</h2>
+  <p>Google checks your identity before you can publish, and that can take several days. Start now even though the app isn't uploaded yet. The full walkthrough is in chapter 5, step 1. Decide first whether to sign up as a <strong>personal</strong> or an <strong>organization</strong> account:</p>
+  <table>
+    <tr><th></th><th>Personal account</th><th>Organization account</th></tr>
+    <tr><td>Who it's for</td><td>An individual</td><td>A registered business</td></tr>
+    <tr><td>Extra paperwork</td><td>Government ID</td><td>A free D-U-N-S number for the business (takes days to weeks), plus business documents</td></tr>
+    <tr><td>Before going public</td><td>Must run a closed test with <strong>12+ testers for 14 days in a row</strong></td><td>No mandatory closed test</td></tr>
+    <tr><td>Shown on the store as</td><td>Your legal name</td><td>The business name</td></tr>
+  </table>
+  <p><strong>Recommendation:</strong> if you've already registered a business, or plan to within a month, go organization: it looks more trustworthy to homeowners and skips the 14-day test. Otherwise start personal. The 14-day test is useful anyway, and the testers can be your first contractors.</p>
+</section>
+
+<!-- =========================================================== 3 -->
+<section class="chapter">
+  <p class="kicker">Chapter 3</p>
+  <h1 class="ch">Set up your computer</h1>
+  <p class="lede">You'll use Android Studio, Google's free tool for Android apps, to run Workbid on your phone and to make the file you upload to Google Play. Budget an hour, mostly waiting for downloads.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Install Android Studio (free).</li><li>Plug in your phone and press the green ▶ button.</li><li>Practise with fake demo data so you don't mess up real data.</li></ul></div>
+
+  <h2>Install Android Studio</h2>
+  <ol class="steps">
+    <li><b>Download.</b> Go to developer.android.com/studio and download Android Studio for your computer (Windows or Mac).</li>
+    <li><b>Install with the defaults.</b> Click Next through the installer. When the setup wizard asks, choose <em>Standard</em>. It downloads the Android tools (a few GB).</li>
+    <li><b>Open the project.</b> Choose <em>File → Open</em> and pick the <code>Workbid</code> folder (the one containing <code>settings.gradle.kts</code>). Click <em>Trust Project</em> if asked.</li>
+    <li><b>Wait for "Gradle sync".</b> The bottom bar shows progress. The first time takes 5–15 minutes. When it's done there are no red error bars.</li>
+  </ol>
+
+  <h2>Run Workbid on your phone</h2>
+  <ol class="steps">
+    <li><b>Turn on developer mode.</b> On your Android phone open <em>Settings → About phone</em> and tap <em>Build number</em> seven times. You'll see "You are now a developer".</li>
+    <li><b>Turn on USB debugging.</b> <em>Settings → System → Developer options → USB debugging</em> → on.</li>
+    <li><b>Plug in.</b> Connect the phone with a USB cable and tap <em>Allow</em> on the phone's "Allow USB debugging?" prompt.</li>
+    <li><b>Press Run.</b> In Android Studio your phone's name appears at the top. Press the green ▶ button. Workbid installs and opens.</li>
+  </ol>
+  <div class="box warn"><span class="t">Watch out: this is the live app</span>
+    <p>A normal Run connects to your <em>real</em> Firebase database. Accounts and jobs you create are real. For practice, use the test setup below instead, or clean up afterwards (chapter 6 shows how to delete things).</p>
+  </div>
+
+  <h2>Practise safely with demo data</h2>
+  <p>The project includes a local stand-in for Firebase (the "emulators") filled with realistic demo jobs, bids and accounts. Nothing you do there touches real data. It's how the screenshots in this handbook were made.</p>
+  <p><strong>One-time setup:</strong> install <a>Node.js</a> (the LTS version from nodejs.org). Then open a terminal in the <code>rules-test</code> folder (in Android Studio: <em>View → Tool Windows → Terminal</em>, then type <code>cd rules-test</code>) and run:</p>
+  <pre>npm install</pre>
+  <p><strong>Each time you want to practise:</strong></p>
+  <ol class="steps">
+    <li><b>Start the emulators</b> in one terminal and leave it running:<pre>npm run emulators</pre></li>
+    <li><b>Load the demo data</b> in a second terminal tab:<pre>npm run seed</pre></li>
+    <li><b>Run the test version of the app.</b> Start an Android emulator in Android Studio (<em>Device Manager</em> → ▶ next to a virtual phone). Then in the terminal, from the main Workbid folder:<pre>gradlew installDebug -Pworkbid.emulator=true</pre>
+      On a Mac, type <code>./gradlew</code> instead of <code>gradlew</code>.</li>
+    <li><b>Sign in</b> as the demo homeowner <code>hana@example.com</code> or the demo contractor <code>pat@example.com</code>. The password for both is <code>workbid-demo</code>. Account → the version line says "test data (emulator)", so you always know which one you're in.</li>
+  </ol>
+  <div class="box tip"><span class="t">Tip</span>
+    <p>Run <code>npm run seed</code> again any time to reset the demo data to its starting state.</p>
+  </div>
+  <div class="shots two">
+    <figure class="shot"><img src="images/02-myjobs.png"><figcaption>Signed in as Hana (homeowner): three demo jobs</figcaption></figure>
+    <figure class="shot"><img src="images/09-account.png"><figcaption>Account screen shows "test data (emulator)" at the bottom</figcaption></figure>
+  </div>
+</section>
+
+<!-- =========================================================== 4 -->
+<section class="chapter">
+  <p class="kicker">Chapter 4</p>
+  <h1 class="ch">Before you launch</h1>
+  <p class="lede">Google reviews every app before it goes public. These are the things an app with accounts must have. Do them all before your first upload and the review is usually painless.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Get a web address and a help@ email.</li><li>Publish three web pages: privacy, delete account, terms.</li><li>Paste those links into the app, publish the database rules, make a reviewer login.</li></ul></div>
+
+  <h2>1. Get a domain and a support email</h2>
+  <ol class="steps">
+    <li><b>Check the name.</b> Search Google Play and the Canadian Trademarks Database (ised-isde.canada.ca, search "trademarks database") for "Workbid". If someone already uses it for a similar service, pick a new name now. It's much cheaper than renaming later.</li>
+    <li><b>Buy the domain</b> from a registrar such as Namecheap, Porkbun, Cloudflare or a Canadian registrar for <code>.ca</code> names.</li>
+    <li><b>Set up an email</b> like <code>help@yourdomain.ca</code>. The simplest option is free email forwarding from your registrar to your business Gmail. Google Workspace (paid) is nicer if you want to send from that address.</li>
+  </ol>
+
+  <h2>2. Make three web pages</h2>
+  <p>Google needs public links to a <strong>privacy policy</strong> and an <strong>account deletion</strong> page. A <strong>terms of use</strong> page protects you too. Templates for all three are in Appendix A. The easiest free host is Google Sites:</p>
+  <ol class="steps">
+    <li><b>Create the site.</b> Go to sites.google.com while signed in to the business account → <em>Blank site</em>. Title it "Workbid".</li>
+    <li><b>Add three pages</b> (<em>Pages</em> panel → ＋): <em>Privacy</em>, <em>Delete account</em>, <em>Terms</em>. Paste each template and fill in the highlighted parts.</li>
+    <li><b>Publish.</b> Click <em>Publish</em>, choose a web address, and set it to public. Optionally connect your own domain under <em>Settings → Custom domains</em>.</li>
+    <li><b>Test the links</b> in a private browser window. They must load without signing in.</li>
+  </ol>
+
+  <h2>3. Put your details into the app</h2>
+  <p>Open <code>app/src/main/java/app/workbid/AppConfig.kt</code> in Android Studio and fill in the four values between the quote marks. Anything left blank is hidden in the app.</p>
+  <pre>const val SUPPORT_EMAIL = "help@yourdomain.ca"
+const val PRIVACY_POLICY_URL = "https://yourdomain.ca/privacy"
+const val ACCOUNT_DELETION_URL = "https://yourdomain.ca/delete-account"
+const val TERMS_URL = "https://yourdomain.ca/terms"</pre>
+  <p>These show up on the Account screen as <em>Contact support</em>, <em>Privacy policy</em> and <em>Terms of use</em>. Account deletion already works inside the app (Account → Delete account). The web page is for people who've uninstalled.</p>
+
+  <h2>4. Publish the security rules</h2>
+  <ol class="steps">
+    <li>Firebase console → <em>Firestore Database</em> → <em>Rules</em> tab.</li>
+    <li>Delete everything there, paste the full contents of <code>firestore.rules</code> from the project folder, and click <em>Publish</em>.</li>
+    <li>Do this again every time <code>firestore.rules</code> changes.</li>
+  </ol>
+  <div class="box stop"><span class="t">Stop: don't skip this</span>
+    <p>The app and the rules were updated together. If the old rules are still published, placing bids fails, and the protections against people changing other people's jobs aren't active.</p>
+  </div>
+
+  <h2>5. Turn on password reset and verification emails</h2>
+  <p>Firebase console → <em>Authentication</em> → <em>Templates</em>. Check the <em>Password reset</em> and <em>Email address verification</em> templates. Set the sender name to "Workbid" and the reply-to address to your support email. Under <em>Settings → Authorized domains</em>, nothing needs changing.</p>
+
+  <h2>6. Create a reviewer account</h2>
+  <p>Google's reviewers need to sign in to see the app. In the live app (or in Firebase console → <em>Authentication → Add user</em>), create an account such as <code>playreview@yourdomain.ca</code> with a strong password. Sign in once on your phone and post one sample job so the reviewer sees something. You'll give these details to Google in chapter 5.</p>
+
+  <div class="box ok"><span class="t">Done when</span>
+    <ul class="check">
+      <li>Support email works (send it a test).</li>
+      <li>Privacy, deletion and terms pages load in a private window.</li>
+      <li>AppConfig.kt filled in.</li>
+      <li>Rules published.</li>
+      <li>Reviewer account signs in.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- =========================================================== 5 -->
+<section class="chapter">
+  <p class="kicker">Chapter 5</p>
+  <h1 class="ch">Launch on Google Play</h1>
+  <p class="lede">This is the full path from "no account" to "anyone can download Workbid". Do the steps in order. Where Google asks a question about the app, the right answer for Workbid is given.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Make the upload file, and back up its key twice.</li><li>Fill in the store page and Google's forms (answers are given).</li><li>Test with 12+ people for 14 days, then go live in Canada.</li></ul></div>
+
+  <h2>Step 1 · Create your developer account</h2>
+  <ol class="steps">
+    <li><b>Sign up.</b> Go to play.google.com/console while signed in to the business Google account. Choose <em>personal</em> or <em>organization</em> (see chapter 2).</li>
+    <li><b>Fill in your details.</b> Developer name (shown on the store, e.g. "Workbid"), contact email (your support email), phone number, and a website if you have one.</li>
+    <li><b>Pay the US$25 fee</b> with a card.</li>
+    <li><b>Verify your identity.</b> Upload the government ID Google asks for (and for organizations, D-U-N-S and business details). Verification can take a few days. Google emails you when it's done.</li>
+    <li><b>Verify your phone and email</b> when prompted inside the Console.</li>
+  </ol>
+
+  <h2>Step 2 · Make the release file</h2>
+  <p>Google Play takes an <strong>Android App Bundle</strong> (<code>.aab</code> file). It must be signed with your own <strong>upload key</strong>, a small file that proves the update came from you.</p>
+  <figure class="dia">
+    <svg viewBox="0 0 700 150" role="img" aria-label="App signing: you sign with the upload key, Google re-signs for phones">
+      <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1b2429"/></marker></defs>
+      <rect x="10" y="30" width="150" height="70" rx="12" fill="#fff" stroke="#1b2429" stroke-width="1.5"/>
+      <text x="85" y="58" text-anchor="middle" font-size="11" font-weight="800" fill="#1b2429">Android Studio</text>
+      <text x="85" y="76" text-anchor="middle" font-size="9.5" fill="#5b676d">builds app-release.aab</text>
+      <rect x="218" y="30" width="150" height="70" rx="12" fill="#fbf0cf" stroke="#e6b22a" stroke-width="1.5"/>
+      <text x="293" y="54" text-anchor="middle" font-size="11" font-weight="800" fill="#6b4d00">🔑 Your upload key</text>
+      <text x="293" y="72" text-anchor="middle" font-size="9.5" fill="#6b4d00">workbid-upload.jks</text>
+      <text x="293" y="87" text-anchor="middle" font-size="9.5" fill="#6b4d00">+ 2 passwords</text>
+      <rect x="426" y="30" width="130" height="70" rx="12" fill="#1b2429"/>
+      <text x="491" y="58" text-anchor="middle" font-size="11" font-weight="800" fill="#eef0ec">Play Console</text>
+      <text x="491" y="76" text-anchor="middle" font-size="9.5" fill="#97a3a7">checks it's you</text>
+      <rect x="600" y="30" width="90" height="70" rx="12" fill="#ddefe2" stroke="#2e7a48" stroke-width="1.5"/>
+      <text x="645" y="58" text-anchor="middle" font-size="11" font-weight="800" fill="#1f5a33">Phones</text>
+      <text x="645" y="76" text-anchor="middle" font-size="9.5" fill="#1f5a33">install it</text>
+      <g stroke="#1b2429" stroke-width="1.8" marker-end="url(#ar3)"><line x1="162" y1="65" x2="214" y2="65"/><line x1="370" y1="65" x2="422" y2="65"/><line x1="558" y1="65" x2="596" y2="65"/></g>
+      <text x="188" y="56" text-anchor="middle" font-size="8.5" fill="#5b676d">signs</text>
+      <text x="396" y="56" text-anchor="middle" font-size="8.5" fill="#5b676d">upload</text>
+      <path d="M293,104 L293,124 L120,124" fill="none" stroke="#a83a2c" stroke-width="1.6" stroke-dasharray="4 3"/>
+      <text x="14" y="128" font-size="9.5" font-weight="700" fill="#a83a2c">Back up</text>
+      <text x="14" y="142" font-size="9" fill="#a83a2c">password manager + USB stick</text>
+      <text x="320" y="128" font-size="9" fill="#5b676d">Every future update must be signed with the same upload key.</text>
+      <text x="320" y="142" font-size="9" fill="#5b676d">Google keeps the final "app signing key" safe for you (Play App Signing).</text>
+    </svg>
+    <figcaption>You only ever handle the upload key. Lose it and updates stop until Google resets it, so back it up twice.</figcaption>
+  </figure>
+  <ol class="steps">
+    <li><b>Bump the version</b> if this isn't the first upload: in <code>app/build.gradle.kts</code>, raise <code>versionCode</code> by 1 (e.g. 2 → 3) and update <code>versionName</code> (e.g. "1.2"). Every upload needs a higher versionCode than the last.</li>
+    <li><b>Start the wizard.</b> In Android Studio: <em>Build → Generate Signed App Bundle or APK…</em> → <em>Android App Bundle</em> → Next.</li>
+    <li><b>Create the key</b> (first time only). Click <em>Create new…</em> under <em>Key store path</em>. Save it <strong>outside</strong> the project folder, e.g. <code>Documents/workbid-keys/workbid-upload.jks</code>. Pick strong passwords, alias <code>upload</code>, validity 25+ years, and fill in your name and city.</li>
+    <li><b>Build.</b> Choose the <em>release</em> build variant → <em>Create</em>. When it finishes, click <em>locate</em>. Your file is <code>app/release/app-release.aab</code>.</li>
+  </ol>
+  <div class="box stop"><span class="t">Stop: back up the key now</span>
+    <p>Put the <code>.jks</code> file and both passwords in your password manager and one other safe place (an encrypted USB stick or cloud drive). Never put them in the project folder or email them. If you lose the upload key you can ask Google to reset it, but it takes time and you can't ship updates meanwhile.</p>
+  </div>
+  <div class="box tip"><span class="t">Optional: build from the command line</span>
+    <p>Create a file named <code>keystore.properties</code> in the main Workbid folder (it's ignored by git, so it's never shared) containing:</p>
+    <pre>storeFile=C:/Users/you/Documents/workbid-keys/workbid-upload.jks
+storePassword=your-store-password
+keyAlias=upload
+keyPassword=your-key-password</pre>
+    <p>Then <code>gradlew bundleRelease</code> builds a signed bundle into <code>app/build/outputs/bundle/release/</code>.</p>
+  </div>
+
+  <h2>Step 3 · Create the app in Play Console</h2>
+  <ol class="steps">
+    <li><b>Create app.</b> Play Console → <em>Create app</em>. App name: <strong>Workbid</strong>. Default language: English (Canada) or English (US). App or game: <strong>App</strong>. Free or paid: <strong>Free</strong>. You can't change free to paid later.</li>
+    <li><b>Accept the declarations</b> (developer policies, US export laws) and click <em>Create app</em>.</li>
+    <li><b>Open the Dashboard.</b> It shows a checklist titled roughly <em>Set up your app</em>. The next two steps fill it in.</li>
+  </ol>
+
+  <h2>Step 4 · Store listing</h2>
+  <p><em>Grow → Store presence → Main store listing</em>. Ready-to-paste text is in Appendix A. Images are in the <code>store-assets</code> folder.</p>
+  <table>
+    <tr><th>Field</th><th>Limit</th><th>Use</th></tr>
+    <tr><td>App name</td><td>30 characters</td><td>Workbid: Home Jobs &amp; Bids</td></tr>
+    <tr><td>Short description</td><td>80 characters</td><td>See Appendix A</td></tr>
+    <tr><td>Full description</td><td>4,000 characters</td><td>See Appendix A</td></tr>
+    <tr><td>App icon</td><td>512 × 512 PNG</td><td><code>store-assets/icon-512.png</code></td></tr>
+    <tr><td>Feature graphic</td><td>1024 × 500</td><td><code>store-assets/feature-graphic.png</code></td></tr>
+    <tr><td>Phone screenshots</td><td>2–8 images</td><td><code>store-assets/phone-1.png</code> to <code>phone-6.png</code></td></tr>
+  </table>
+  <figure class="dia">
+    <img src="../store-assets/feature-graphic.png" style="width:100%;border-radius:10px;border:1px solid #d8ddd7">
+    <div class="shots" style="grid-template-columns:repeat(6,1fr);gap:8px;margin-top:8px">
+      <figure class="shot"><img src="../store-assets/phone-1.png" style="border-radius:8px"></figure>
+      <figure class="shot"><img src="../store-assets/phone-2.png" style="border-radius:8px"></figure>
+      <figure class="shot"><img src="../store-assets/phone-3.png" style="border-radius:8px"></figure>
+      <figure class="shot"><img src="../store-assets/phone-4.png" style="border-radius:8px"></figure>
+      <figure class="shot"><img src="../store-assets/phone-5.png" style="border-radius:8px"></figure>
+      <figure class="shot"><img src="../store-assets/phone-6.png" style="border-radius:8px"></figure>
+    </div>
+    <figcaption>Already made for you in <code>store-assets/</code>: the feature graphic (top) and six phone screenshots. Upload them as they are.</figcaption>
+  </figure>
+  <p>Also set the <strong>category</strong> to <em>House &amp; Home</em> (or <em>Business</em>), add your support email, website and privacy policy link under <em>Store settings</em>.</p>
+
+  <h2>Step 5 · App content (the policy forms)</h2>
+  <p><em>Policy and programs → App content</em>. Each item needs an answer before you can publish. Here's what to choose for Workbid:</p>
+  <table>
+    <tr><th>Section</th><th>Answer for Workbid</th></tr>
+    <tr><td>Privacy policy</td><td>Paste your privacy policy URL.</td></tr>
+    <tr><td>App access</td><td><em>All or some functionality is restricted</em> → add instructions: "Sign in with the details below. Use the Homeowner/Contractor switch at the top to see both sides." Add the reviewer email and password from chapter 4.</td></tr>
+    <tr><td>Ads</td><td>No, the app does not contain ads.</td></tr>
+    <tr><td>Content rating</td><td>Start the questionnaire. Category: <em>All other app types</em>. Answer honestly: no violence, sexual content, gambling or drugs. When asked whether users can interact or share content with each other, answer <strong>yes</strong> (job posts and bid messages are visible to others). Expect a rating of Everyone/PEGI 3 with a "Users interact" note.</td></tr>
+    <tr><td>Target audience</td><td>18 and over only. The app is not designed for children.</td></tr>
+    <tr><td>Data safety</td><td>See the full answer table in Appendix A.</td></tr>
+    <tr><td>Account deletion</td><td>Yes, users can delete their account in the app (Account → Delete account) and via your deletion web page URL.</td></tr>
+    <tr><td>Government apps</td><td>No.</td></tr>
+    <tr><td>Financial features</td><td>None. The app shows prices but doesn't move money.</td></tr>
+    <tr><td>Health</td><td>No health features.</td></tr>
+    <tr><td>News app</td><td>No.</td></tr>
+  </table>
+  <div class="box tip"><span class="t">User-generated content</span>
+    <p>Because people post jobs and messages others can see, Google expects a way to report bad content, and that you act on reports. Workbid has this: the ⋮ menu on any job and the <em>Report</em> link on bids. Reports land in Firebase (chapter 6 shows how to review them). Your terms of use should say what isn't allowed. The template in Appendix A does.</p>
+  </div>
+
+  <h2>Step 6 · Internal testing (you, today)</h2>
+  <ol class="steps">
+    <li><em>Test and release → Testing → Internal testing</em> → <em>Create new release</em>.</li>
+    <li>If asked about <strong>Play App Signing</strong>, accept the default (Google manages the app signing key; you keep the upload key).</li>
+    <li>Upload <code>app-release.aab</code>. Release name fills in automatically. Release notes: "First test build."</li>
+    <li><em>Testers</em> tab → create an email list with your own Gmail (and David's). Save, then <em>Review release → Start rollout</em>.</li>
+    <li>Copy the <em>join on the web</em> link, open it on your phone, accept, and install Workbid from the Play Store. Check that sign-in, posting, bidding and the Account screen all work.</li>
+  </ol>
+
+  <h2>Step 7 · Closed testing (14 days, personal accounts)</h2>
+  <p>If you have a personal developer account created after November 2023, Google requires a closed test with <strong>at least 12 testers who stay opted in for 14 days in a row</strong> before you can apply for production. (Organization accounts can skip to step 8, but a short closed test is still smart.)</p>
+  <ol class="steps">
+    <li><em>Testing → Closed testing</em> → <em>Create track</em> (or use the default "Alpha") → <em>Create new release</em> → upload the same .aab (or a newer one).</li>
+    <li><b>Add testers</b> by email list or a Google Group. A Google Group (groups.google.com) is easiest: anyone you invite to the group becomes a tester.</li>
+    <li><b>Roll out</b> and send everyone the opt-in link from the <em>Testers</em> tab. Each tester must click it, tap <em>Become a tester</em>, then install from the Play Store.</li>
+    <li><b>Keep them engaged.</b> Ask testers to open the app a few times a week and try both sides. Google asks how testing went when you apply, and engaged testers make that easy.</li>
+    <li><b>Watch the counter.</b> The Dashboard shows how many testers have opted in and how many days remain.</li>
+  </ol>
+  <figure class="dia">
+    <svg viewBox="0 0 700 150" role="img" aria-label="Closed test: at least 12 testers opted in every day for 14 days in a row">
+      <g font-size="9" text-anchor="middle">
+        <!-- 14 day squares -->
+        <g fill="#dcecec" stroke="#0d6670" stroke-width="1.2">
+          <rect x="10" y="30" width="42" height="42" rx="7"/><rect x="58" y="30" width="42" height="42" rx="7"/><rect x="106" y="30" width="42" height="42" rx="7"/><rect x="154" y="30" width="42" height="42" rx="7"/><rect x="202" y="30" width="42" height="42" rx="7"/><rect x="250" y="30" width="42" height="42" rx="7"/><rect x="298" y="30" width="42" height="42" rx="7"/>
+          <rect x="356" y="30" width="42" height="42" rx="7"/><rect x="404" y="30" width="42" height="42" rx="7"/><rect x="452" y="30" width="42" height="42" rx="7"/><rect x="500" y="30" width="42" height="42" rx="7"/><rect x="548" y="30" width="42" height="42" rx="7"/><rect x="596" y="30" width="42" height="42" rx="7"/>
+        </g>
+        <rect x="644" y="30" width="46" height="42" rx="7" fill="#e6b22a"/>
+        <g fill="#0d3a40" font-weight="800" font-size="11">
+          <text x="31" y="56">1</text><text x="79" y="56">2</text><text x="127" y="56">3</text><text x="175" y="56">4</text><text x="223" y="56">5</text><text x="271" y="56">6</text><text x="319" y="56">7</text>
+          <text x="377" y="56">8</text><text x="425" y="56">9</text><text x="473" y="56">10</text><text x="521" y="56">11</text><text x="569" y="56">12</text><text x="617" y="56">13</text>
+        </g>
+        <text x="667" y="50" font-weight="800" font-size="11" fill="#1b2429">14</text><text x="667" y="63" font-size="8" font-weight="700" fill="#1b2429">apply!</text>
+        <text x="175" y="20" fill="#5b676d" font-weight="700">WEEK 1</text><text x="497" y="20" fill="#5b676d" font-weight="700">WEEK 2</text>
+      </g>
+      <g font-size="9.5" fill="#1b2429">
+        <circle cx="16" cy="96" r="5" fill="#dcecec" stroke="#0d6670"/><text x="27" y="100">Each day: 12 or more testers opted in (aim for 15–20 in case people drop out)</text>
+        <circle cx="16" cy="116" r="5" fill="#e6b22a"/><text x="27" y="120">After 14 days in a row, "Apply for production" unlocks on the Dashboard</text>
+        <circle cx="16" cy="136" r="5" fill="#f7e3df" stroke="#a83a2c"/><text x="27" y="140" fill="#a83a2c">Drop below 12 and the missing days don't count. Remind testers to stay opted in.</text>
+      </g>
+    </svg>
+    <figcaption>The closed-test requirement for personal developer accounts.</figcaption>
+  </figure>
+
+  <div class="box tip"><span class="t">Where to find 12 testers</span>
+    <p>This doubles as customer research. Invite the first contractors you recruit (chapter 7), a few homeowner friends, and family. Aim for 15–20 so dropouts don't reset your count. Ask them to post a real (small) job or bid. You'll learn more in these two weeks than any other time.</p>
+  </div>
+  <div class="box warn"><span class="t">Watch out</span>
+    <p>If testers opt out and you drop below 12, the 14-day clock effectively restarts for the missing days. Remind people not to leave the test. Uninstalling isn't the same as opting out, but ask them to keep it installed.</p>
+  </div>
+
+  <h2>Step 8 · Apply for production and go live</h2>
+  <ol class="steps">
+    <li>When the Dashboard says you're eligible, click <em>Apply for production</em> and answer the questions about your testing (what testers did, what you changed, how you know it's ready). Be specific: "15 testers, 22 test jobs, fixed X and Y."</li>
+    <li>After approval, go to <em>Production → Create new release</em>, upload your latest .aab and write release notes.</li>
+    <li><em>Countries/regions</em>: start with <strong>Canada only</strong>, since your contractors are local.</li>
+    <li>Choose a <strong>staged rollout</strong> (e.g. 20%) if offered, then <em>Start rollout to production</em>.</li>
+    <li>Review usually takes a few days, sometimes a week or more for new accounts. You get an email when it's live, and the app appears at <code>play.google.com/store/apps/details?id=app.workbid</code>.</li>
+  </ol>
+
+  <h2>Releasing updates later</h2>
+  <ol>
+    <li>Make your change and test it (chapter 3).</li>
+    <li>Raise <code>versionCode</code> by 1 and update <code>versionName</code> in <code>app/build.gradle.kts</code>.</li>
+    <li>Build a new signed bundle with the <em>same</em> upload key.</li>
+    <li>Play Console → <em>Production → Create new release</em> → upload → release notes → roll out.</li>
+    <li>If you changed <code>firestore.rules</code>, publish them in Firebase <em>before</em> the update reaches people.</li>
+  </ol>
+
+  <h2>Common rejection reasons and fixes</h2>
+  <table>
+    <tr><th>Google says</th><th>What to do</th></tr>
+    <tr><td>Couldn't sign in / app access</td><td>Check the reviewer account still works on the live app and the instructions mention the Homeowner/Contractor switch.</td></tr>
+    <tr><td>Privacy policy missing or broken</td><td>The link must load publicly, mention Workbid by name, and describe what's collected (Appendix A covers this).</td></tr>
+    <tr><td>Data safety form doesn't match</td><td>Use the answers in Appendix A. If you add features (photos, location), update the form.</td></tr>
+    <tr><td>Account deletion</td><td>Make sure the deletion URL is in the Data safety section and the page explains how to request deletion without the app.</td></tr>
+    <tr><td>Target API level</td><td>Workbid targets Android 16 (API 36), which meets the current rule. Google raises this every year around August. A developer can update it in an hour or two.</td></tr>
+    <tr><td>Misleading claims</td><td>Don't promise "licensed and insured contractors" in the listing unless you actually verify that.</td></tr>
+  </table>
+</section>
+
+<!-- =========================================================== 6 -->
+<section class="chapter">
+  <p class="kicker">Chapter 6</p>
+  <h1 class="ch">Running Workbid day to day</h1>
+  <p class="lede">Once you're live, the work is mostly people: answering questions, checking new jobs look legit, and nudging contractors to bid. The Firebase console is your control room.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Firebase console = your control room.</li><li>Check reports and new jobs every week.</li><li>Remove spam, disable bad accounts, help people reset passwords.</li></ul></div>
+
+  <h2>A tour of the Firebase console</h2>
+  <table>
+    <tr><th>Menu</th><th>What you'll do there</th></tr>
+    <tr><td>Authentication → Users</td><td>See who signed up and when. Search by email. Use the ⋮ menu on a user to <em>reset password</em>, <em>disable</em> (blocks sign-in, keeps data) or <em>delete</em>.</td></tr>
+    <tr><td>Firestore Database → Data</td><td>Browse <code>jobs</code>, <code>bids</code>, <code>workorders</code>, <code>receipts</code>, <code>users</code> and <code>reports</code>. Click any document to read or edit its fields.</td></tr>
+    <tr><td>Firestore → Rules</td><td>Where you publish <code>firestore.rules</code>.</td></tr>
+    <tr><td>Firestore → Usage</td><td>Daily reads, writes and deletes against your free limits.</td></tr>
+    <tr><td>Project settings → Users and permissions</td><td>Who can access the console.</td></tr>
+  </table>
+
+  <h2>Handling a report</h2>
+  <div class="cols">
+    <div>
+      <p>Anyone can report a job (⋮ menu, top right of a job) or a bid (the <em>Report</em> link next to <em>Accept</em>). They pick a reason and can add details. The person reported is never told who reported them.</p>
+      <p>Each report becomes a document in the <code>reports</code> collection, with the reason, the job and item IDs, who sent it, and <code>status: "new"</code>. Nobody can read reports from the app; only you, in the console.</p>
+    </div>
+    <figure class="shot" style="max-width:2.1in;margin:0 auto"><img src="images/11-report.png"><figcaption>What people see when they report a job</figcaption></figure>
+  </div>
+  <ol class="steps">
+    <li><b>Open reports.</b> Firestore → Data → <code>reports</code>. New ones have <code>status: "new"</code>. Each has the reason, details, the <code>jobId</code> and <code>targetId</code> (the job or bid ID), and <code>by</code> (who reported).</li>
+    <li><b>Look at the content.</b> Open <code>jobs</code> → the document with that jobId (or <code>bids</code> → the targetId).</li>
+    <li><b>Act.</b> For spam or abuse, delete the job or bid document. For a repeat offender, find their user ID in the <code>postedBy</code> or <code>contractorId</code> field, go to Authentication, search the user list for that ID, and <em>disable</em> the account.</li>
+    <li><b>Close it.</b> Edit the report's <code>status</code> field to <code>"done"</code> so you know it's handled.</li>
+  </ol>
+  <div class="box warn"><span class="t">Watch out: the console bypasses the rules</span>
+    <p>Edits you make in the console aren't checked by the security rules, so you can break things the app relies on. Safe actions: deleting an open job (also delete its bids), deleting a bid that isn't the accepted one, disabling a user. Avoid editing booked or completed jobs by hand.</p>
+  </div>
+
+  <h2>Helping someone who's stuck</h2>
+  <table>
+    <tr><th>They say</th><th>You do</th></tr>
+    <tr><td>"I forgot my password"</td><td>Tell them to tap <em>Forgot password?</em> on the sign-in screen. The email can land in spam. Or send it from Authentication → ⋮ → Reset password.</td></tr>
+    <tr><td>"I didn't get the verification email"</td><td>Account → Send again. Check spam. Verification is encouraged but not required to use the app.</td></tr>
+    <tr><td>"I want my account deleted"</td><td>Point them to Account → Delete account. If they can't sign in, delete them in Authentication and remove their open jobs and bids by hand. Reply to confirm within 30 days.</td></tr>
+    <tr><td>"The app says it can't save"</td><td>The message says why: usually no internet, or the job changed (e.g. it was booked while they were bidding). If it's "Live updates stopped", check Firestore → Usage for hitting the daily limit.</td></tr>
+    <tr><td>"I booked the wrong contractor"</td><td>Bookings can't be undone in the app. The homeowner and contractor should talk. If needed, you can delete the job in the console and the homeowner re-posts it.</td></tr>
+  </table>
+
+  <h2>Weekly checklist</h2>
+  <ul class="check">
+    <li>Review new <code>reports</code> (aim for within 24 hours).</li>
+    <li>Skim new jobs for spam or personal info (phone numbers and addresses in descriptions).</li>
+    <li>Look for open jobs with no bids after 48 hours, and nudge a matching contractor personally.</li>
+    <li>Check Firestore → Usage. If daily reads are above about 30,000, plan the upgrade in chapter 10.</li>
+    <li>Read new Play Store reviews and reply (Play Console → <em>Ratings and reviews</em>).</li>
+    <li>Update your metrics sheet (chapter 7).</li>
+  </ul>
+
+  <h2>If you upgrade to the paid Blaze plan</h2>
+  <p>You'll need Blaze when you outgrow the free limits, or to use features like scheduled backups. It's pay-as-you-go with the same free allowance included each month. When you switch:</p>
+  <ol>
+    <li>Go to Google Cloud console → <em>Billing → Budgets &amp; alerts</em> and create a budget (e.g. $25 a month) with email alerts at 50%, 90% and 100%.</li>
+    <li>Turn on daily Firestore exports for backups (a developer can set this up in under an hour).</li>
+  </ol>
+</section>
+
+<!-- =========================================================== 7 -->
+<section class="chapter">
+  <p class="kicker">Chapter 7</p>
+  <h1 class="ch">Getting customers</h1>
+  <p class="lede">Workbid is a two-sided marketplace. Homeowners only stay if bids arrive quickly; contractors only stay if there are jobs worth bidding on. The way through is to start tiny, in one area, and do things by hand that won't scale.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Start in a few neighbourhoods only.</li><li>Sign up 15–20 contractors before you tell homeowners.</li><li>Match the first jobs by hand: text a contractor every time a job is posted.</li></ul></div>
+
+  <figure class="dia">
+    <svg viewBox="0 0 700 250" role="img" aria-label="Marketplace flywheel: more contractors, faster bids, happier homeowners, more jobs">
+      <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0d6670"/></marker></defs>
+      <g fill="none" stroke="#0d6670" stroke-width="2.4" marker-end="url(#ar4)">
+        <path d="M232,52 Q300,20 368,52"/>
+        <path d="M430,90 Q470,125 430,160"/>
+        <path d="M368,198 Q300,230 232,198"/>
+        <path d="M170,160 Q130,125 170,90"/>
+      </g>
+      <g text-anchor="middle">
+        <rect x="120" y="44" width="140" height="50" rx="25" fill="#1b2429"/><text x="190" y="66" font-size="11" font-weight="800" fill="#eef0ec">More contractors</text><text x="190" y="81" font-size="9" fill="#97a3a7">in your area</text>
+        <rect x="340" y="44" width="140" height="50" rx="25" fill="#dcecec" stroke="#0d6670"/><text x="410" y="66" font-size="11" font-weight="800" fill="#0d3a40">Faster, better bids</text><text x="410" y="81" font-size="9" fill="#0d3a40">within 24 hours</text>
+        <rect x="340" y="156" width="140" height="50" rx="25" fill="#ddefe2" stroke="#2e7a48"/><text x="410" y="178" font-size="11" font-weight="800" fill="#1f5a33">Happy homeowners</text><text x="410" y="193" font-size="9" fill="#1f5a33">tell neighbours</text>
+        <rect x="120" y="156" width="140" height="50" rx="25" fill="#fbf0cf" stroke="#e6b22a"/><text x="190" y="178" font-size="11" font-weight="800" fill="#6b4d00">More jobs posted</text><text x="190" y="193" font-size="9" fill="#6b4d00">worth bidding on</text>
+      </g>
+      <text x="300" y="130" text-anchor="middle" font-size="10" font-weight="800" fill="#1b2429">The flywheel</text>
+      <g font-size="9.5" fill="#1b2429">
+        <text x="520" y="62" font-weight="800">Where to push first</text>
+        <text x="520" y="80">1. Sign up contractors</text>
+        <text x="520" y="95">    before launch</text>
+        <text x="520" y="113">2. Text them every time</text>
+        <text x="520" y="128">    a job is posted</text>
+        <text x="520" y="146">3. Call homeowners after</text>
+        <text x="520" y="161">    their first job</text>
+        <text x="520" y="179">4. Expand only when 70%+</text>
+        <text x="520" y="194">    of jobs get a bid in a day</text>
+      </g>
+    </svg>
+    <figcaption>Each side attracts the other. Your job in the first months is to push the wheel by hand until it turns on its own.</figcaption>
+  </figure>
+
+  <h2>The five rules</h2>
+  <ol class="steps">
+    <li><b>One area first.</b> Pick a few neighbourhoods you can drive across in 20 minutes (for example Fairfield, James Bay and Oak Bay). A busy small area beats an empty big one. Expand only when jobs there reliably get 2+ bids within a day.</li>
+    <li><b>Contractors before homeowners.</b> Line up 15–20 contractors across the common trades <em>before</em> telling homeowners. The first homeowner who posts and hears nothing never comes back.</li>
+    <li><b>Do it by hand.</b> For the first 50 jobs, personally text a matching contractor every time a job is posted. That's your real product right now.</li>
+    <li><b>Free until it works.</b> Don't charge anyone until homeowners post repeatedly and contractors win real work. Pricing ideas are at the end of this chapter.</li>
+    <li><b>Talk to everyone.</b> Call your first 20 users after their first job. Ask what almost made them quit. Write it down.</li>
+  </ol>
+
+  <h2>Recruiting contractors</h2>
+  <h3>Who to target first</h3>
+  <p>Small operators (1–5 people) and newly independent tradespeople. They have gaps in their calendars and no marketing budget. Big firms don't need you yet. Start with the trades homeowners need most often: handyman/general repair, plumbing, painting, electrical, carpentry, landscaping.</p>
+
+  <h3>Where to find them</h3>
+  <ul>
+    <li><strong>Your own network:</strong> anyone who's done work on your or your friends' homes.</li>
+    <li><strong>Google Maps:</strong> search "plumber near Fairfield Victoria". Small businesses with 5–40 reviews are the sweet spot. Call or email from their listing.</li>
+    <li><strong>Supply stores at 7am:</strong> trade counters (plumbing and electrical suppliers, lumber yards). Ask the counter staff if you can leave cards. Be brief and friendly.</li>
+    <li><strong>Facebook groups and Kijiji/Craigslist</strong> "services" ads: these people are actively looking for work.</li>
+    <li><strong>Trade schools and apprenticeship programs:</strong> newly certified trades looking for their own clients.</li>
+  </ul>
+
+  <div class="script"><span class="who">Call or DM script · contractor</span>
+    Hi, is this Pat? I'm [name], I'm launching Workbid, a free app for homeowners in Fairfield and James Bay to post small jobs and get bids. I'm signing up 20 local trades before we open to homeowners next month. It's free: you see jobs, send a price and a date, and the homeowner books you. No lead fees. Could I send you the link to try it? It takes two minutes to set up.
+  </div>
+  <div class="script"><span class="who">Follow-up text after they say yes</span>
+    Thanks Pat! Here's the link: [Play Store or tester link]. Sign up, tap "Contractor" at the top, and you'll see open jobs. I'll text you personally when a plumbing job is posted near you. Any questions, text me here.
+  </div>
+
+  <h3>Keep them</h3>
+  <ul>
+    <li>Text each contractor when a job in their trade is posted, especially in the first two months.</li>
+    <li>Tell them when they lose a bid and why, if the homeowner shares (price, date, message).</li>
+    <li>Share tips that win bids: answer fast, give a specific date, explain what's included, mention licences and insurance.</li>
+  </ul>
+
+  <h2>Finding homeowners</h2>
+  <h3>Channels that work locally</h3>
+  <table>
+    <tr><th>Channel</th><th>How</th><th>Effort / cost</th></tr>
+    <tr><td>Neighbourhood Facebook groups</td><td>Answer "can anyone recommend a…" posts helpfully, and mention Workbid when it fits. Read each group's rules about promotion first.</td><td>Low / free</td></tr>
+    <tr><td>Nextdoor</td><td>Same approach. Some areas allow a free business page.</td><td>Low / free</td></tr>
+    <tr><td>Reddit (e.g. r/VictoriaBC)</td><td>Be a real person: "I built this for our area, would love feedback." Check subreddit rules.</td><td>Low / free</td></tr>
+    <tr><td>Google Business Profile</td><td>Create a free profile for Workbid so people searching "home repair app Victoria" find you. Ask happy users for reviews.</td><td>Medium / free</td></tr>
+    <tr><td>Community boards and flyers</td><td>Cafés, libraries, community centres, hardware stores. A QR code to the Play Store page.</td><td>Medium / ~$50 printing</td></tr>
+    <tr><td>Property managers and landlords</td><td>They post jobs constantly. One good property manager can be 10 jobs a month.</td><td>Medium / free</td></tr>
+    <tr><td>Realtors</td><td>Buyers need repairs before and after moving. Offer a "move-in ready" one-pager realtors can hand out.</td><td>Medium / free</td></tr>
+    <tr><td>Your contractors</td><td>Ask them to tell customers they're on Workbid. Homeowners trust the trades they already use.</td><td>Low / free</td></tr>
+  </table>
+
+  <div class="script"><span class="who">Community group post</span>
+    Hi neighbours! I've been working on a free app called Workbid for Fairfield, James Bay and Oak Bay. You post a home job (leaky tap, painting, fence repair), local contractors send bids with a price and the date they can come, and you pick one. No phone tag. Twenty local trades are already on it. If you have a small job coming up, I'd love for you to try it and tell me what you think: [link]. Mods, happy to remove if this isn't allowed.
+  </div>
+  <div class="script"><span class="who">Property manager email</span>
+    Subject: Faster quotes for your maintenance jobs in Victoria<br>
+    Hi [name], I run Workbid, a free app where local contractors bid on home jobs with a price and a confirmed date. For property managers it means posting a job once and getting several quotes without the phone tag. We have [N] local trades on it today. Would it help to try it on your next small maintenance job? I'm happy to set it up with you in 10 minutes.
+  </div>
+
+  <h2>Your first 20 jobs, by hand</h2>
+  <ol>
+    <li>Ask friends and family for real jobs they've been putting off. Post them together.</li>
+    <li>Each time a job is posted, text 2–3 matching contractors with the link.</li>
+    <li>If no bid arrives in 24 hours, call a contractor and ask what would make them bid.</li>
+    <li>After each job, call the homeowner: Was it easy? Would you use it again? Who would you tell?</li>
+    <li>Ask happy homeowners for a Play Store review and a referral, and contractors for a quote you can use.</li>
+  </ol>
+
+  <h2>Building trust</h2>
+  <ul>
+    <li><strong>Encourage contractors to mention credentials in their bid message:</strong> business licence, liability insurance, WorkSafeBC coverage, and for electrical or gas work, their Technical Safety BC licence number. Licensed work is a legal requirement for those trades.</li>
+    <li><strong>Tell homeowners what to check</strong> before accepting: credentials, written scope (the work order), and payment terms. Never pay the full amount up front.</li>
+    <li><strong>Respond to every report within a day,</strong> and remove bad actors quickly.</li>
+    <li><strong>Be clear that Workbid connects people</strong> and doesn't employ the contractors (chapter 8).</li>
+  </ul>
+
+  <h2>What to measure</h2>
+  <p>Keep a simple spreadsheet, updated weekly. Most of these you can count in the Firebase console.</p>
+  <table>
+    <tr><th>Metric</th><th>Why it matters</th><th>Healthy early target</th></tr>
+    <tr><td>Jobs posted per week</td><td>Homeowner demand</td><td>Growing week over week</td></tr>
+    <tr><td>% of jobs with a bid in 24 h</td><td>The single best health signal</td><td>Above 70%</td></tr>
+    <tr><td>Average bids per job</td><td>Choice for homeowners</td><td>2–4</td></tr>
+    <tr><td>% of jobs booked</td><td>Are bids good enough?</td><td>Above 50%</td></tr>
+    <tr><td>Active contractors (bid in last 30 days)</td><td>Supply</td><td>3+ per common trade in your area</td></tr>
+    <tr><td>Repeat homeowners</td><td>Real value</td><td>Any, early on</td></tr>
+  </table>
+
+  <h2>A 90-day plan</h2>
+  <div class="timeline">
+    <div class="w">Weeks 1–4</div><div>Accounts, setup, closed test. Recruit 15–20 contractors in your launch area. Collect 5–10 real jobs from people you know.</div>
+    <div class="w">Weeks 5–8</div><div>Go live in Canada. Post in 3–5 local groups. Match every job by hand. Call every first-time user. Fix the top three complaints.</div>
+    <div class="w">Weeks 9–12</div><div>Property manager and realtor outreach. Google Business Profile. Ask for reviews. If 70%+ of jobs get a bid within 24 hours, add the next neighbourhood.</div>
+  </div>
+
+  <h2>Making money later</h2>
+  <p>Only once both sides are active. Common options for this kind of marketplace, from least to most friction:</p>
+  <ul>
+    <li><strong>Contractor subscription</strong> (e.g. a monthly fee for unlimited bids, with a free tier of a few bids a month). Predictable and simple.</li>
+    <li><strong>Featured listings</strong>: contractors pay to appear first or show a "verified" badge after you check their licence and insurance.</li>
+    <li><strong>Pay per bid or per lead.</strong> Contractors often dislike paying for leads that don't convert, so be careful.</li>
+    <li><strong>Commission on booked jobs.</strong> Needs in-app payments, which is a big build and brings tax and payment regulations. Avoid this at first.</li>
+  </ul>
+  <p>Any of these needs development work. Charging inside an Android app has Google Play billing rules, so get a developer's advice before choosing.</p>
+</section>
+
+<!-- =========================================================== 8 -->
+<section class="chapter">
+  <p class="kicker">Chapter 8</p>
+  <h1 class="ch">Business basics</h1>
+  <p class="lede">A short orientation for running Workbid in British Columbia. It isn't legal or tax advice. An hour with a lawyer and an accountant before you charge anyone is money well spent.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Register a business name when you're ready (BC Registries).</li><li>GST only matters past $30,000 a year in revenue.</li><li>You connect people; you're not the contractor. Say so in your terms.</li></ul></div>
+
+  <h2>Registering the business</h2>
+  <ul>
+    <li><strong>Sole proprietorship:</strong> the simplest start. In BC you can register a business name through BC Registries and Online Services (search "BC Registries name request"). The fees are modest.</li>
+    <li><strong>Corporation:</strong> more paperwork and cost, but it separates your personal assets from the business. Worth considering once you charge money or hire. Ask an accountant.</li>
+    <li><strong>Business bank account:</strong> keep Workbid money separate from day one. It makes taxes far easier.</li>
+  </ul>
+
+  <h2>GST</h2>
+  <p>You must register for GST once the business's taxable revenue passes $30,000 over four consecutive calendar quarters (the "small supplier" threshold). Before that it's optional. While Workbid is free, this doesn't apply yet.</p>
+  <p>The app adds 5% GST to bid and work-order totals, which matches BC (where PST is separate). Many very small contractors aren't GST-registered and shouldn't charge it. Making the tax setting per-contractor is on the improvement list in chapter 10.</p>
+
+  <h2>Privacy</h2>
+  <p>Workbid collects names, email addresses and the content people post. In BC, private organizations are covered by BC's <em>Personal Information Protection Act</em> (PIPA), and the federal <em>PIPEDA</em> applies in many cases. In plain terms:</p>
+  <ul>
+    <li>Only collect what you need, and say what you collect and why (your privacy policy does this).</li>
+    <li>Keep it secure. The security rules and Firebase handle most of this; keep your Google accounts locked down.</li>
+    <li>Let people see, correct and delete their information. The app supports deletion; handle other requests by email within 30 days.</li>
+    <li>Name a person responsible for privacy (you) with a contact email.</li>
+    <li>If there's ever a breach that could seriously harm people, you must report it. Get advice immediately.</li>
+  </ul>
+
+  <h2>Liability: you're the marketplace, not the contractor</h2>
+  <ul>
+    <li>Your terms of use should say Workbid connects homeowners and independent contractors, isn't a party to their agreements, and doesn't guarantee work quality.</li>
+    <li>Don't call contractors "vetted", "licensed" or "insured" unless you check, and keep records of the check.</li>
+    <li>Encourage written scope (work orders), and payments directly between the two parties.</li>
+    <li>Consider business liability insurance for Workbid itself once you're active. A broker can quote this.</li>
+  </ul>
+
+  <h2>Records and taxes</h2>
+  <ul>
+    <li>Keep receipts for business costs (the Play fee, domain, printing, software).</li>
+    <li>A simple bookkeeping app (Wave is free; QuickBooks and FreshBooks are paid) saves pain at tax time.</li>
+    <li>Report the business income on your personal return (T2125) if you're a sole proprietor.</li>
+  </ul>
+</section>
+
+<!-- =========================================================== 9 -->
+<section class="chapter">
+  <p class="kicker">Chapter 9</p>
+  <h1 class="ch">Changing the app</h1>
+  <p class="lede">Many small changes are a one-line edit. Make the change, test it with the demo data (chapter 3), then release it (chapter 5, "Releasing updates").</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Small text and list changes are one-line edits.</li><li>Lists in the app must match lists in the rules, exactly.</li><li>For bigger changes use an AI coding assistant or hire a developer.</li></ul></div>
+
+  <h2>Common edits</h2>
+  <table>
+    <tr><th>To change</th><th>Edit this</th><th>Also change</th></tr>
+    <tr><td>Support email or web links</td><td><code>AppConfig.kt</code></td><td>Nothing</td></tr>
+    <tr><td>List of trades</td><td><code>CATS</code> in <code>ui/Components.kt</code></td><td><code>trades()</code> in <code>firestore.rules</code>, then publish the rules</td></tr>
+    <tr><td>Arrival windows</td><td><code>WINDOWS</code> in <code>ui/Components.kt</code></td><td><code>windows()</code> in <code>firestore.rules</code></td></tr>
+    <tr><td>"How soon?" options</td><td><code>TIMING</code> in <code>ui/Components.kt</code></td><td><code>timings()</code> in <code>firestore.rules</code></td></tr>
+    <tr><td>Report reasons</td><td><code>REPORT_REASONS</code> in <code>ui/Components.kt</code></td><td><code>reportReasons()</code> in <code>firestore.rules</code></td></tr>
+    <tr><td>Tax rate</td><td><code>GST</code> in <code>ui/Components.kt</code></td><td>Nothing (display only)</td></tr>
+    <tr><td>Colours</td><td><code>ui/Theme.kt</code> (light and dark sets)</td><td><code>res/values/colors.xml</code> for the icon and launch screen</td></tr>
+    <tr><td>App name on the phone</td><td><code>res/values/strings.xml</code></td><td>Store listing</td></tr>
+    <tr><td>Wording on a screen</td><td>Search the project for the exact text (<em>Edit → Find → Find in Files</em>, Ctrl+Shift+F) and change it</td><td>Nothing</td></tr>
+  </table>
+  <div class="box stop"><span class="t">Stop: lists must match the rules</span>
+    <p>The security rules only accept trades, windows, timings and report reasons that exactly match their lists, character for character (the dash in "8–10 AM" is a special en-dash). If you add a trade in the app but not in the rules, posting that trade fails with "That change wasn't allowed". Always change both, publish the rules, and run the rules tests (<code>npm test</code> in <code>rules-test</code>).</p>
+  </div>
+
+  <h2>Getting help with bigger changes</h2>
+  <h3>AI coding assistants</h3>
+  <p>Tools like Claude Code can make changes for you if you open the Workbid folder and describe what you want. Good requests are specific:</p>
+  <pre>"Add 'Drywall' to the list of trades in the app and in firestore.rules,
+then run the rules tests."
+
+"Read AUDIT.md and chapter 10 of docs/handoff-guide.html, then implement
+item 2 (load only the data each screen needs). Update the rules and tests."</pre>
+  <p>Always test the result with the demo data before releasing, and keep the project in git (it's already set up) so you can undo.</p>
+
+  <h3>Hiring a developer</h3>
+  <ul>
+    <li>Look for "Android Kotlin Jetpack Compose Firebase" experience. Upwork, local developer meetups, or a referral.</li>
+    <li>Give them <code>AUDIT.md</code>, this handbook, and a written list of what you want. Ask for a fixed quote per item.</li>
+    <li>Ask them to work on a separate git branch, keep the rules tests passing, and add tests for new rules.</li>
+    <li>Never give them your keystore or Google account passwords. Add them to Firebase as <em>Editor</em> and remove access when done.</li>
+  </ul>
+</section>
+
+<!-- =========================================================== 10 -->
+<section class="chapter">
+  <p class="kicker">Chapter 10</p>
+  <h1 class="ch">Limits and next steps</h1>
+  <p class="lede">Workbid works well for a launch in one area. These are the honest limits today, in the order worth fixing. Hand this page to any developer.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>The app is ready for a one-area launch.</li><li>Fix privacy of reads, data loading, and notifications before growing.</li><li>Hand this chapter to any developer you hire.</li></ul></div>
+
+  <table>
+    <tr><th>#</th><th>Improvement</th><th>Why</th></tr>
+    <tr><td>1</td><td><strong>Limit who can read what.</strong> Today any signed-in user could technically read every bid and receipt (the app doesn't show them, but someone technical could fetch them).</td><td>Privacy, and sealed bids: contractors shouldn't see each other's prices.</td></tr>
+    <tr><td>2</td><td><strong>Load only what each screen needs.</strong> The app downloads every job and bid on open.</td><td>Costs and free-plan limits (chapter 1), and speed as you grow.</td></tr>
+    <tr><td>3</td><td><strong>Push notifications</strong> for new bids, bookings and approvals (Firebase Cloud Messaging).</td><td>The biggest product gap. Today people have to open the app to notice anything.</td></tr>
+    <tr><td>4</td><td><strong>Block users</strong> and a simple admin screen for reports.</td><td>Easier moderation; Google expects strong UGC tools as you grow.</td></tr>
+    <tr><td>5</td><td><strong>Photos</strong> on jobs and receipts (Firebase Storage).</td><td>Better bids; homeowners can show the problem.</td></tr>
+    <tr><td>6</td><td><strong>Contractor profiles</strong> with licence, insurance, reviews.</td><td>Trust, and the basis for a paid "verified" tier.</td></tr>
+    <tr><td>7</td><td><strong>Tax settings per contractor</strong> (GST, HST, PST, none) and money stored in cents.</td><td>Correct totals outside BC and for small, unregistered contractors.</td></tr>
+    <tr><td>8</td><td><strong>Distance filtering</strong> from the homeowner's area.</td><td>Needed once you expand beyond one city.</td></tr>
+    <tr><td>9</td><td><strong>In-app messaging</strong> between homeowner and booked contractor.</td><td>Today they exchange phone numbers outside the app.</td></tr>
+    <tr><td>10</td><td><strong>Crash reporting</strong> (Firebase Crashlytics) and automated backups.</td><td>Know about problems before users tell you.</td></tr>
+  </table>
+  <div class="box tip"><span class="t">Rule of thumb</span>
+    <p>Do items 1–3 before you spend money on marketing beyond your launch area. Everything else can wait until users ask for it.</p>
+  </div>
+
+  <h2>What's already solid</h2>
+  <ul>
+    <li>Security rules enforce who can change what, with 22 automated tests.</li>
+    <li>Real error messages instead of silent failures.</li>
+    <li>Account deletion, password reset, email verification and content reporting, which Google Play requires.</li>
+    <li>Targets Android 16 (API 36), code-shrunk release build (about 3 MB), signing set up.</li>
+    <li>Light and dark mode, inline form errors, "what happens next" guidance at every stage of a job.</li>
+  </ul>
+</section>
+
+<!-- =========================================================== 11 -->
+<section class="chapter">
+  <p class="kicker">Chapter 11</p>
+  <h1 class="ch">Troubleshooting</h1>
+
+  
+  <div class="inshort"><span class="t">In short</span><ul><li>Find your problem in the left column.</li><li>Do what the right column says.</li><li>Still stuck? Email David or ask an AI assistant with the exact error text.</li></ul></div><table>
+    <tr><th>Problem</th><th>Likely cause</th><th>Fix</th></tr>
+    <tr><td>Android Studio shows red "Gradle sync failed"</td><td>Missing download or a network blip</td><td><em>File → Sync Project with Gradle Files</em>. If it persists, <em>File → Invalidate Caches → Restart</em>.</td></tr>
+    <tr><td>Phone doesn't appear in Android Studio</td><td>USB debugging prompt not accepted, or a charge-only cable</td><td>Unplug, replug, accept the prompt on the phone. Try another cable.</td></tr>
+    <tr><td>"Placing a bid failed: that change wasn't allowed"</td><td>Old security rules still published</td><td>Publish <code>firestore.rules</code> (chapter 4).</td></tr>
+    <tr><td>App stuck loading or "Live updates stopped"</td><td>No internet, or free daily read limit reached</td><td>Check Firestore → Usage. If at the limit, it resets at midnight Pacific. Plan improvement #2.</td></tr>
+    <tr><td>Reset or verification email never arrives</td><td>Spam folder, or a typo in the email</td><td>Check spam. Confirm the address in Authentication → Users.</td></tr>
+    <tr><td>Play Console: "Version code 2 has already been used"</td><td>Forgot to bump versionCode</td><td>Raise <code>versionCode</code> in <code>app/build.gradle.kts</code> and rebuild.</td></tr>
+    <tr><td>Play Console: "Upload key doesn't match"</td><td>Signed with a different keystore</td><td>Use the same <code>.jks</code> as your first upload. If lost, request an upload key reset in Play Console → <em>App integrity</em>.</td></tr>
+    <tr><td>Test app shows real data, not demo data</td><td>Built without the emulator flag</td><td>Install with <code>gradlew installDebug -Pworkbid.emulator=true</code>, and make sure <code>npm run emulators</code> is running.</td></tr>
+    <tr><td>Rules tests fail</td><td>App lists and rules lists out of sync, or a rules typo</td><td>Read the failing test's name; it says what was expected. Undo the last rules change if unsure.</td></tr>
+  </table>
+</section>
+
+<!-- =========================================================== APPENDIX -->
+<section class="chapter">
+  <p class="kicker">Appendix A</p>
+  <h1 class="ch">Templates and checklists</h1>
+  <p class="lede">Fill in the <span class="fill">highlighted</span> parts. These templates are a starting point, not legal advice. Have a lawyer review them once you're charging money.</p>
+
+  <h2>Store listing text</h2>
+  <p><strong>App name (30):</strong> Workbid: Home Jobs &amp; Bids</p>
+  <p><strong>Short description (80):</strong> Post a home job, get bids from local contractors, and book a date in minutes.</p>
+  <p><strong>Full description:</strong></p>
+  <div class="template">
+    <p>Need a tap fixed, a room painted or a fence repaired? Post the job on Workbid and local contractors send you bids with a price, how long it'll take, and the date they can be there. Compare them side by side and book the one you like. No phone tag.</p>
+    <h4>For homeowners</h4>
+    <p>• Post a job in a minute: what needs doing, your neighbourhood, an optional budget and a preferred date.<br>• Compare bids: price, days of work, arrival date and window, and a message from each contractor.<br>• Accept a bid to book the date. Both of you see it in your schedule.<br>• Approve work orders with clear line items and GST, and keep receipts together.<br>• Track every job from booked to done.</p>
+    <h4>For contractors</h4>
+    <p>• Find open jobs near you, filtered by trade or searched by area.<br>• Send a price and the date you can come. Edit or withdraw any time before the homeowner chooses.<br>• Won jobs land in your schedule with the arrival window.<br>• Send work orders for approval and log material receipts.</p>
+    <h4>One free account, both sides</h4>
+    <p>Switch between Homeowner and Contractor at the top of the screen.</p>
+    <p>Workbid is currently available in <span class="fill">Victoria, BC</span>. Workbid connects homeowners with independent contractors and is not a party to their agreements. Questions? <span class="fill">help@yourdomain.ca</span></p>
+  </div>
+
+  <h2>Data safety form answers</h2>
+  <table>
+    <tr><th>Question</th><th>Answer</th></tr>
+    <tr><td>Does your app collect or share user data?</td><td>Yes, it collects.</td></tr>
+    <tr><td>Is all data encrypted in transit?</td><td>Yes (Firebase uses HTTPS/TLS).</td></tr>
+    <tr><td>Can users request deletion?</td><td>Yes: in the app and at your deletion URL.</td></tr>
+    <tr><td>Personal info → Name</td><td>Collected · not shared · required · App functionality, Account management</td></tr>
+    <tr><td>Personal info → Email address</td><td>Collected · not shared · required · App functionality, Account management</td></tr>
+    <tr><td>App activity → Other user-generated content</td><td>Collected (job posts, bids, messages, work orders, receipt entries) · not shared · required · App functionality</td></tr>
+    <tr><td>Everything else (location, financial info, photos, contacts, device IDs, crash logs)</td><td>Not collected. The neighbourhood a homeowner types is user-generated content, not device location.</td></tr>
+  </table>
+  <p class="small muted">"Shared" in Google's form means transferring data to a third party. Firebase acting as your service provider doesn't count as sharing. If you add analytics, crash reporting, photos or location later, update this form before releasing.</p>
+</section>
+
+<section class="chapter">
+  <h2 style="margin-top:0">Privacy policy template</h2>
+  <div class="template">
+    <p><strong>Workbid Privacy Policy</strong><br>Last updated: <span class="fill">date</span></p>
+    <p><span class="fill">Your name or business name</span> ("we") operates the Workbid mobile app. This policy explains what information we collect, why, and your choices.</p>
+    <h4>What we collect</h4>
+    <p>• <strong>Account information:</strong> your name and email address, and a password (stored securely by our provider; we can't see it).<br>• <strong>Content you post:</strong> jobs (title, trade, neighbourhood, description, budget, dates), bids (business name, price, dates, messages), work orders, receipt entries, and reports you submit.<br>We don't collect your device location, contacts, photos or payment information.</p>
+    <h4>How we use it</h4>
+    <p>To run the app: to sign you in, show your jobs and bids to the right people, book dates, and let you track work. To respond to support requests and reports, and to keep the service safe.</p>
+    <h4>Who can see it</h4>
+    <p>Your name and the jobs you post are visible to other Workbid users. Your bids are visible to the homeowner who posted the job. Work orders and receipts are visible to the homeowner and booked contractor. We don't sell your information or use it for advertising.</p>
+    <h4>Service providers</h4>
+    <p>We use Google Firebase (Google LLC) to store data and handle sign-in. Data may be stored or processed outside Canada, including in the United States.</p>
+    <h4>Keeping and deleting your information</h4>
+    <p>You can delete your account any time in the app under Account → Delete account, or by following the instructions at <span class="fill">deletion page URL</span>. Deleting your account removes your profile, sign-in, open jobs and unbooked bids. Booked and completed jobs, with their work orders and receipts, are kept so the other party retains their records. Your name may remain on those records. Reports may be kept to keep the service safe.</p>
+    <h4>Your rights</h4>
+    <p>You can ask to access or correct your personal information by emailing us. We respond within 30 days.</p>
+    <h4>Children</h4>
+    <p>Workbid is for adults 18 and over.</p>
+    <h4>Contact</h4>
+    <p>Privacy contact: <span class="fill">your name</span>, <span class="fill">help@yourdomain.ca</span>. We may update this policy; we'll change the date above and, for significant changes, notify you in the app.</p>
+  </div>
+
+  <h2>Account deletion page template</h2>
+  <div class="template">
+    <p><strong>Delete your Workbid account</strong></p>
+    <p><strong>In the app:</strong> open Workbid → tap the account icon (top right) → Delete account → follow the prompts. You'll confirm with your password.</p>
+    <p><strong>Without the app:</strong> email <span class="fill">help@yourdomain.ca</span> from the address on your account with the subject "Delete my Workbid account". We'll confirm and delete within 30 days.</p>
+    <p><strong>What's deleted:</strong> your profile and sign-in, jobs you posted that are still open (and their bids), and bids you sent that weren't booked.</p>
+    <p><strong>What's kept:</strong> booked and completed jobs, with their work orders and receipts, so the other person keeps their records. Reports may be kept for safety.</p>
+  </div>
+</section>
+
+<section class="chapter">
+  <h2 style="margin-top:0">Terms of use: what to cover</h2>
+  <p>A lawyer can draft these properly; until then, your page should at least say:</p>
+  <div class="template">
+    <p><strong>1. What Workbid is.</strong> A platform that connects homeowners with independent contractors. We're not a contractor, employer or party to any agreement between users, and we don't guarantee any work.</p>
+    <p><strong>2. Accounts.</strong> You must be 18+, give accurate information, and keep your password safe. One person per account.</p>
+    <p><strong>3. Contractors' responsibilities.</strong> Hold any licences, permits and insurance the work legally requires (including Technical Safety BC licensing for electrical and gas work and WorkSafeBC coverage where applicable), and honour bids you send.</p>
+    <p><strong>4. What's not allowed.</strong> Spam, scams, fake bids or jobs, harassment, hateful or sexual content, illegal work, and posting other people's personal information. We may remove content and suspend accounts that break these rules.</p>
+    <p><strong>5. Reporting.</strong> Use the Report option in the app; we review reports and may act without notice.</p>
+    <p><strong>6. Payments.</strong> Arranged directly between homeowner and contractor. Workbid doesn't handle payments.</p>
+    <p><strong>7. Liability.</strong> The service is provided as-is; to the extent the law allows, we aren't liable for work performed, disputes between users, or losses arising from use of the app.</p>
+    <p><strong>8. Changes and contact.</strong> We may update these terms; continued use means you accept them. Contact <span class="fill">help@yourdomain.ca</span>. Governed by the laws of British Columbia.</p>
+  </div>
+
+  <h2>One-page launch checklist</h2>
+  <div class="cols">
+    <div>
+      <h3>Accounts</h3>
+      <ul class="check">
+        <li>Business Google account with 2-Step Verification</li>
+        <li>Firebase: you're Owner; David's access decided</li>
+        <li>Play developer account verified</li>
+        <li>Password manager holds everything</li>
+      </ul>
+      <h3>Must-dos</h3>
+      <ul class="check">
+        <li>Name checked (Play, trademarks)</li>
+        <li>Domain + support email working</li>
+        <li>Privacy, deletion, terms pages live</li>
+        <li>AppConfig.kt filled in</li>
+        <li>firestore.rules published</li>
+        <li>Email templates set (sender name, reply-to)</li>
+        <li>Reviewer account with a sample job</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Play Console</h3>
+      <ul class="check">
+        <li>Upload key created and backed up twice</li>
+        <li>Signed .aab built</li>
+        <li>Store listing text and images</li>
+        <li>App content: all sections complete</li>
+        <li>Internal test installed and working</li>
+        <li>Closed test: 12+ testers × 14 days</li>
+        <li>Production applied for and approved</li>
+        <li>Countries: Canada · staged rollout</li>
+      </ul>
+      <h3>Customers</h3>
+      <ul class="check">
+        <li>15–20 contractors signed up before launch</li>
+        <li>5–10 real jobs lined up</li>
+        <li>Launch posts drafted for local groups</li>
+        <li>Metrics spreadsheet started</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Glossary</h2>
+  <table>
+    <tr><td>.aab (App Bundle)</td><td>The file you upload to Google Play. Google turns it into installable apps for each phone.</td></tr>
+    <tr><td>.apk</td><td>An installable Android app file. Used for testing; Play wants .aab.</td></tr>
+    <tr><td>Android Studio</td><td>Google's free program for building Android apps.</td></tr>
+    <tr><td>Emulator</td><td>A pretend phone, or pretend Firebase, running on your computer for testing.</td></tr>
+    <tr><td>Firebase</td><td>Google's service that stores Workbid's data (Firestore) and handles sign-in (Authentication).</td></tr>
+    <tr><td>Firestore rules</td><td>The server-side rules that decide who can read or change each piece of data. The app can't bypass them.</td></tr>
+    <tr><td>Keystore / upload key</td><td>A file plus passwords that prove an upload came from you. Back it up.</td></tr>
+    <tr><td>versionCode</td><td>A whole number that must go up with every Play upload.</td></tr>
+    <tr><td>Target API level</td><td>The Android version the app is built for. Google raises the minimum yearly.</td></tr>
+    <tr><td>Closed testing</td><td>A Play track where only invited testers can install the app.</td></tr>
+    <tr><td>UGC</td><td>User-generated content: anything users post that others can see.</td></tr>
+    <tr><td>git</td><td>The version history for the code. Lets you see and undo changes.</td></tr>
+  </table>
+
+  <hr>
+  <p class="small muted">Workbid Owner's Handbook · November 2026 · Source: <code>docs/handoff-guide.html</code> in the project. Edit it and print to PDF from any browser (Ctrl+P → Save as PDF) to update.</p>
+</section>
+
+</body>
+</html>
