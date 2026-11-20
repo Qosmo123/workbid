@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function job(id) { return get(/databases/$(database)/documents/jobs/$(id)).data; }
+
+    // Display names
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && me() == userId;
+    }
+
+    // Homeowners post jobs. Only the homeowner or the booked contractor can change one.
+    match /jobs/{jobId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.postedBy == me()
+                    && request.resource.data.status == 'open';
+      allow update: if signedIn()
+                    && (resource.data.postedBy == me() || resource.data.contractorId == me())
+                    && request.resource.data.postedBy == resource.data.postedBy;
+      allow delete: if signedIn() && resource.data.postedBy == me();
+    }
+
+    // Contractors bid on open jobs; they edit or withdraw their own. The homeowner can clear bids when deleting a job.
+    match /bids/{bidId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.contractorId == me()
+                    && job(request.resource.data.jobId).status == 'open';
+      allow update: if signedIn() && resource.data.contractorId == me()
+                    && request.resource.data.contractorId == me();
+      allow delete: if signedIn()
+                    && (resource.data.contractorId == me() || job(resource.data.jobId).postedBy == me());
+    }
+
+    // The booked contractor writes work orders; the homeowner can only approve them.
+    match /workorders/{woId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.by == me()
+                    && job(request.resource.data.jobId).contractorId == me();
+      allow update: if signedIn() && job(resource.data.jobId).postedBy == me()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'approvedAt']);
+    }
+
+    // Either party on a booked job can log receipts.
+    match /receipts/{receiptId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.by == me()
+                    && (job(request.resource.data.jobId).postedBy == me()
+                        || job(request.resource.data.jobId).contractorId == me());
+      allow delete: if signedIn() && resource.data.by == me();
+    }
+  }
+}
