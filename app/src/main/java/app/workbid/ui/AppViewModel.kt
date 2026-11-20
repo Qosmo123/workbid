@@ -13,7 +13,13 @@ import app.workbid.data.LineItem
 import app.workbid.data.Receipt
 import app.workbid.data.Repo
 import app.workbid.data.WorkOrder
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.Job
@@ -23,12 +29,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
-    private val auth = try { FirebaseAuth.getInstance() } catch (_: Exception) { null }
+    private val auth = FirebaseAuth.getInstance()
     private val prefs = app.getSharedPreferences("workbid", Context.MODE_PRIVATE)
 
-    var uid by mutableStateOf(prefs.getString("local_uid", null) ?: auth?.currentUser?.uid)
+    /** Only ever the signed-in Firebase user's ID. */
+    var uid by mutableStateOf(auth.currentUser?.uid)
         private set
-    var myName by mutableStateOf(prefs.getString("local_name", null) ?: auth?.currentUser?.displayName.orEmpty())
+    var myName by mutableStateOf(auth.currentUser?.displayName.orEmpty())
         private set
     @set:JvmName("setRoleInternal")
     var role by mutableStateOf(prefs.getString("role", "home") ?: "home")
@@ -51,7 +58,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var listeners: List<Job> = emptyList()
 
     init {
-        if (uid != null) startListening()
+        // Earlier versions stored a fake offline identity here. Remove it so it can never be used.
+        prefs.edit().remove("local_uid").remove("local_name").remove("local_email").apply()
+        if (uid != null) {
+            startListening()
+            viewModelScope.launch { runCatching { ensureProfile(null) } }
+        }
     }
 
     val isHomeowner: Boolean get() = role == "home"
@@ -72,54 +84,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- auth ----------
     fun signIn(email: String, password: String) = authAction {
-        val cleanEmail = email.trim()
-        try {
-            auth?.signInWithEmailAndPassword(cleanEmail, password)?.await()
-            uid = auth?.currentUser?.uid
-            myName = auth?.currentUser?.displayName?.takeIf { it.isNotBlank() } ?: myName
-        } catch (_: Exception) {
-            // Fallback to local authentication when Firebase/API key is unconfigured
-            val savedEmail = prefs.getString("local_email", "")
-            val localUid = prefs.getString("local_uid", null) ?: ("user_" + cleanEmail.hashCode().coerceAtLeast(0))
-            val defaultName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
-            val localName = if (savedEmail == cleanEmail) prefs.getString("local_name", defaultName) ?: defaultName else defaultName
-
-            prefs.edit()
-                .putString("local_uid", localUid)
-                .putString("local_name", localName)
-                .putString("local_email", cleanEmail)
-                .apply()
-
-            uid = localUid
-            myName = localName
-        }
+        val result = auth.signInWithEmailAndPassword(email.trim(), password).await()
+        val user = result.user ?: error("Sign-in failed. Try again.")
+        uid = user.uid
+        myName = user.displayName.orEmpty()
+        ensureProfile(email.trim())
         startListening()
     }
 
     fun signUp(name: String, email: String, password: String) = authAction {
         val cleanName = name.trim()
-        val cleanEmail = email.trim()
-        try {
-            val result = auth?.createUserWithEmailAndPassword(cleanEmail, password)?.await()
-            val user = result?.user ?: error("Account was not created.")
-            user.updateProfile(UserProfileChangeRequest.Builder().setDisplayName(cleanName).build()).await()
-            uid = user.uid
-            myName = cleanName
-            Repo.set("users", user.uid, mapOf("name" to cleanName, "createdAt" to System.currentTimeMillis()))
-        } catch (_: Exception) {
-            // Fallback to local authentication when Firebase/API key is unconfigured
-            val localUid = "user_" + System.currentTimeMillis().toString().takeLast(6)
-            prefs.edit()
-                .putString("local_uid", localUid)
-                .putString("local_name", cleanName)
-                .putString("local_email", cleanEmail)
-                .apply()
-
-            uid = localUid
-            myName = cleanName
-            Repo.set("users", localUid, mapOf("name" to cleanName, "createdAt" to System.currentTimeMillis()))
-        }
+        val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+        val user = result.user ?: error("Account was not created. Try again.")
+        user.updateProfile(UserProfileChangeRequest.Builder().setDisplayName(cleanName).build()).await()
+        uid = user.uid
+        myName = cleanName
+        Repo.set("users", user.uid, mapOf("name" to cleanName, "createdAt" to System.currentTimeMillis()))
         startListening()
+    }
+
+    /**
+     * Makes sure users/{uid} exists and uses its name as the display name.
+     * The Firestore rules check that names on jobs and bids match this document.
+     */
+    private suspend fun ensureProfile(email: String?) {
+        val me = uid ?: return
+        val doc = Repo.get("users", me)
+        val stored = doc.getString("name").orEmpty()
+        if (stored.isNotBlank()) {
+            myName = stored
+        } else {
+            val name = myName.ifBlank {
+                (email ?: auth.currentUser?.email.orEmpty()).substringBefore("@")
+                    .replaceFirstChar { it.uppercase() }.ifBlank { "Workbid user" }
+            }.take(60)
+            Repo.set("users", me, mapOf("name" to name, "createdAt" to System.currentTimeMillis()))
+            myName = name
+        }
     }
 
     private fun authAction(block: suspend () -> Unit) {
@@ -128,18 +129,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 block()
             } catch (e: Exception) {
-                message = e.localizedMessage ?: "Sign-in failed. Check your email and password."
+                // A half-finished sign-in must not leave the app looking signed in.
+                if (auth.currentUser == null) uid = null
+                message = authError(e)
             } finally {
                 busy = false
             }
         }
     }
 
+    private fun authError(e: Exception): String = when (e) {
+        is FirebaseAuthInvalidUserException -> "No account with that email. Check it or create an account."
+        is FirebaseAuthWeakPasswordException -> "Pick a stronger password (at least 6 characters)."
+        is FirebaseAuthInvalidCredentialsException -> "Email or password is wrong."
+        is FirebaseAuthUserCollisionException -> "An account with that email already exists. Sign in instead."
+        is FirebaseNetworkException -> "No connection. Check your internet and try again."
+        is FirebaseTooManyRequestsException -> "Too many attempts. Wait a few minutes and try again."
+        else -> e.localizedMessage ?: "Sign-in failed. Try again."
+    }
+
     fun signOut() {
         listeners.forEach { it.cancel() }
         listeners = emptyList()
-        try { auth?.signOut() } catch (_: Exception) {}
-        prefs.edit().remove("local_uid").remove("local_name").remove("local_email").apply()
+        auth.signOut()
         uid = null
         myName = ""
         jobs = emptyList(); bids = emptyList(); workOrders = emptyList(); receipts = emptyList()
@@ -161,18 +173,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---------- actions ----------
+    /** Runs a write and reports the real outcome: [ok] only if it succeeded. */
     private fun act(ok: String, block: suspend () -> Unit) {
         viewModelScope.launch {
-            try {
+            message = try {
                 block()
-                message = ok
+                ok
             } catch (e: Exception) {
-                message = if (e is FirebaseFirestoreException &&
-                    e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED
-                ) "You don't have permission to change that."
-                else ok
+                writeError(e)
             }
         }
+    }
+
+    private fun writeError(e: Exception): String {
+        if (e is FirebaseFirestoreException) return when (e.code) {
+            FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+                "That change wasn't allowed. The job may have changed. Go back and try again."
+            FirebaseFirestoreException.Code.NOT_FOUND -> "That item no longer exists."
+            FirebaseFirestoreException.Code.UNAVAILABLE -> "No connection. Check your internet and try again."
+            FirebaseFirestoreException.Code.UNAUTHENTICATED -> "Your sign-in expired. Sign out and back in."
+            else -> "Couldn't save: ${e.localizedMessage ?: e.code.name}"
+        }
+        return "Couldn't save: ${e.localizedMessage ?: "unknown error"}"
     }
 
     fun postJob(
@@ -210,10 +232,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         val me = uid ?: return
         prefs.edit().putString("company", company.trim()).apply()
-        val data = mapOf(
-            "jobId" to job.id,
-            "contractorId" to me,
-            "contractorName" to myName,
+        // Fields a contractor may change on their own bid while the job is open.
+        val editable = mapOf(
             "company" to company.trim(),
             "amount" to amount,
             "days" to days,
@@ -224,7 +244,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         )
         val existing = myBid(job.id)
         act(if (existing != null) "Bid updated" else "Bid sent") {
-            if (existing != null) Repo.update("bids", existing.id, data) else Repo.add("bids", data)
+            if (existing != null) {
+                Repo.update("bids", existing.id, editable)
+            } else {
+                // One bid per contractor per job: the ID is fixed, and the rules require it.
+                Repo.set(
+                    "bids", "${job.id}_$me",
+                    editable + mapOf("jobId" to job.id, "contractorId" to me, "contractorName" to myName),
+                )
+            }
         }
     }
 
@@ -295,11 +323,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Deletes an open job and its bids together, so a failure can't leave stray bids behind. */
     fun deleteJob(job: HomeJob) {
         val jobBids = bidsFor(job.id)
         act("Job deleted") {
-            jobBids.forEach { Repo.delete("bids", it.id) }
-            Repo.delete("jobs", job.id)
+            Repo.batch { b, db ->
+                jobBids.forEach { b.delete(db.collection("bids").document(it.id)) }
+                b.delete(db.collection("jobs").document(job.id))
+            }
         }
     }
 }

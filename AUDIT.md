@@ -2,20 +2,26 @@
 
 Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build config, README. Code was read, not run.
 
-**Verdict: not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
+> **Update 2026-11-20: blockers B1–B6 are fixed** on branch `fix/audit-blockers`:
+> - The app compiles (`:app:compileDebugKotlin`).
+> - 21 rules tests pass in the Firestore emulator (`rules-test/`).
+> - **Not yet done:** running the app on a device, and republishing `firestore.rules` in the Firebase console. The High and Medium items below are still open.
+> - **Also fixed:** deleting a job is now a single batch (Medium), and the sign-up name is capped at 60 characters to match the rules.
+
+**Verdict (original audit): not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
 
 ---
 
 ## Blockers: fix before anyone else uses it
 
-### B1. A wrong password still "signs you in"
+### ✅ B1. A wrong password still "signs you in"
 `ui/AppViewModel.kt:76-95` and `:102-121`. If Firebase sign-in or sign-up throws for any reason (wrong password, no such account, no network, email already in use), the `catch` creates a fake local user (`user_<hash of email>`) and lets them in. That user has no Firebase session, so every write afterwards is rejected by the rules, and the rejection is hidden (see B2). Line 29 also prefers that saved fake `local_uid` over the real Firebase user on later launches.
 
 **Real-world effect:** someone mistypes their password, gets in anyway, posts a job or a bid, sees "Job posted", and nobody else ever sees it.
 
 **Fix:** remove the local fallback entirely. Show the Firebase error (wrong password, account exists, offline) and stay on the sign-in screen. Take `uid` only from `auth.currentUser` (or an `AuthStateListener`).
 
-### B2. Failed saves are reported as success
+### ✅ B2. Failed saves are reported as success
 - `data/Repo.kt:68-95`: `add`, `set`, `update` and `delete` all `catch (_: Exception) { }` and then write a copy into local memory anyway.
 - `ui/AppViewModel.kt:170-173`: `act()` shows the *success* message for every error that isn't PERMISSION_DENIED (`else ok`).
 
@@ -23,7 +29,7 @@ Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build con
 
 **Fix:** let exceptions reach `act()`, show a real error message, and drop the local copy. Firestore already has an offline cache, so writes made while offline queue and sync on their own. No hand-written fallback is needed.
 
-### B3. The lists show fake and local data instead of the database
+### ✅ B3. The lists show fake and local data instead of the database
 `data/Repo.kt:34-62`. Each listener sends Firestore snapshots *and* the in-memory `localFlow` into the same stream. Whenever a local list changes (after every write, see B2), the screen switches to that local list. It holds the hard-coded demo job "Bathroom Vanity…" by "Alex Morgan", a demo bid from "Apex Plumbing & Tile", and only this session's writes. If the listener errors, it falls back to the demo data too.
 
 Local copies also get made-up IDs (`local_…`, `Repo.kt:69`). Edit or withdraw a bid you just sent and the code calls `update`/`delete` on `bids/local_…`, a document that doesn't exist in Firestore. The error is swallowed, so the real bid never changes.
@@ -32,7 +38,7 @@ Local copies also get made-up IDs (`local_…`, `Repo.kt:69`). Edit or withdraw 
 
 **Fix:** delete the local fallback (`localJobs`…`localReceipts`, the `mapTo*`/`applyDataTo*` helpers, the demo data) and have `listen()` send only Firestore snapshots. Pass errors on through `close(err)` so the existing `catch` in the view model shows them.
 
-### B4. Firestore rules let either side rewrite a booked job
+### ✅ B4. Firestore rules let either side rewrite a booked job
 `firestore.rules:20-22`. Once a job is booked, the homeowner **or** the contractor can update any field except `postedBy`. That means:
 - the contractor can change `price`, mark the job complete, or set `contractorId` to someone else;
 - the homeowner can change the agreed price after booking, or "accept" a made-up contractor ID with no bid behind it, because nothing checks that `acceptedBidId` is a real bid on this job;
@@ -46,13 +52,13 @@ Anyone with the app's public API key can do this from a script, not just from th
 - **Homeowner after booking:** may change only `scheduledDate`, `window`, and complete.
 - **Delete:** only while `status == 'open'`.
 
-### B5. Bid rules are too loose
+### ✅ B5. Bid rules are too loose
 `firestore.rules:28-34`.
 - A homeowner can bid on their own job. Add `job(...).postedBy != me()`.
 - A contractor can place any number of bids on one job. Use a fixed ID such as `bids/{jobId}_{uid}` so each contractor gets one.
 - A contractor can still edit `amount` after being booked. Allow updates only while the job is `open`, and keep `jobId` unchanged.
 
-### B6. No checks on what gets written
+### ✅ B6. No checks on what gets written
 No rule checks field types, sizes or ranges. Anyone with the API key can write negative prices, 1 MB descriptions, `approved: true` on a new work order, or any `postedByName` (for example "Workbid Support"). Add `is string`/`is number`, `size()` limits, `> 0` checks and `keys().hasOnly([...])` to every create and update. `users/{id}` (`:13`) also accepts any fields at all.
 
 ---

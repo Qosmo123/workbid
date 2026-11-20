@@ -33,7 +33,24 @@ For the Google Play Store, use **Build → Generate Signed App Bundle** and foll
 
 Everyone signs in with email. The Homeowner / Contractor switch at the top changes what you see, so one account can do both.
 
-Data lives in Firestore collections `jobs`, `bids`, `workorders`, `receipts` and `users`. The rules in `firestore.rules` make sure people can only change their own jobs and bids, only the booked contractor writes work orders, and the homeowner can only approve them.
+Data lives in Firestore collections `jobs`, `bids`, `workorders`, `receipts` and `users`. The rules in `firestore.rules` enforce who can do what:
+
+- **Jobs** move only forward: open → scheduled → in progress → complete. Accepting a bid must copy that bid's price, contractor, date and window exactly. After booking, either side can move the date or window, only the contractor can start work, either can mark it complete, and nobody can change the price. Only open jobs can be deleted.
+- **Bids**: one per contractor per job (stored at `bids/{jobId}_{contractorId}`), never on your own job, editable only while the job is open. The booked bid can't be withdrawn.
+- **Work orders** come only from the booked contractor and start unapproved. The homeowner approves each one once.
+- **Receipts** come from either party, while the job is booked and not yet complete.
+- **Every write is validated**: field types, lengths, positive amounts, dates as `yyyy-MM-dd`, and trades and windows from the app's lists. Names on jobs and bids must match the poster's `users/{uid}` profile.
+
+**Whenever `firestore.rules` changes, paste it into Firestore → Rules again and Publish.**
+
+### Testing the rules
+`rules-test/` runs the rules against the Firestore emulator. It needs Node.js and Java 21 or newer (Android Studio's bundled JDK works).
+
+```
+cd rules-test
+npm install
+npm test
+```
 
 ## Project layout
 

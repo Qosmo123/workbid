@@ -2,53 +2,201 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ---------- helpers ----------
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
     function job(id) { return get(/databases/$(database)/documents/jobs/$(id)).data; }
+    function jobExists(id) { return exists(/databases/$(database)/documents/jobs/$(id)); }
+    function bid(id) { return get(/databases/$(database)/documents/bids/$(id)).data; }
+    function myName() { return get(/databases/$(database)/documents/users/$(me())).data.name; }
 
-    // Display names
+    function newData() { return request.resource.data; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function money(v) { return v is number && v >= 0 && v <= 10000000; }
+    function positive(v, max) { return v is number && v > 0 && v <= max; }
+    function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function optDate(v) { return v == '' || isDate(v); }
+
+    function trades() {
+      return ['Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Roofing', 'HVAC',
+              'Flooring', 'Landscaping', 'Appliances', 'General repair'];
+    }
+    function windows() { return ['8–10 AM', '10 AM–12 PM', '12–2 PM', '2–4 PM', '4–6 PM', 'Flexible']; }
+    function timings() { return ['Flexible', 'Within 2 weeks', 'This week', 'Urgent (24–48 h)']; }
+
+    // ---------- users: display names ----------
     match /users/{userId} {
       allow read: if signedIn();
-      allow write: if signedIn() && me() == userId;
+      allow create, update: if signedIn() && me() == userId
+                    && newData().keys().hasOnly(['name', 'createdAt'])
+                    && str(newData().name, 1, 60)
+                    && newData().createdAt is int;
+      allow delete: if signedIn() && me() == userId;
     }
 
-    // Homeowners post jobs. Only the homeowner or the booked contractor can change one.
+    // ---------- jobs ----------
+    // Lifecycle: open → scheduled → in_progress → complete (scheduled → complete is also allowed).
     match /jobs/{jobId} {
+      function isOwner() { return resource.data.postedBy == me(); }
+      function isPro() { return resource.data.contractorId != '' && resource.data.contractorId == me(); }
+
+      function validNewJob(d) {
+        return d.keys().hasOnly(['ref', 'title', 'category', 'area', 'description', 'budgetMin', 'budgetMax',
+                                 'timing', 'preferDate', 'status', 'postedBy', 'postedByName', 'createdAt',
+                                 'acceptedBidId', 'contractorId'])
+          && d.keys().hasAll(['title', 'category', 'area', 'description', 'status', 'postedBy', 'postedByName', 'createdAt'])
+          && str(d.get('ref', ''), 0, 12)
+          && str(d.title, 1, 90)
+          && d.category in trades()
+          && str(d.area, 1, 60)
+          && str(d.description, 1, 2000)
+          && money(d.get('budgetMin', 0)) && money(d.get('budgetMax', 0))
+          && (d.get('budgetMax', 0) == 0 || d.get('budgetMin', 0) <= d.get('budgetMax', 0))
+          && (d.get('timing', '') == '' || d.get('timing', '') in timings())
+          && optDate(d.get('preferDate', ''))
+          && d.status == 'open'
+          && d.postedBy == me()
+          && d.postedByName == myName()
+          && d.createdAt is int
+          && d.get('acceptedBidId', '') == ''
+          && d.get('contractorId', '') == '';
+      }
+
+      // Homeowner accepts a bid: every booking field must copy a real bid on this job.
+      function accepting() {
+        let b = bid(newData().acceptedBidId);
+        return isOwner()
+          && resource.data.status == 'open'
+          && changed().hasOnly(['status', 'acceptedBidId', 'contractorId', 'contractorName', 'company',
+                                'price', 'scheduledDate', 'window'])
+          && newData().status == 'scheduled'
+          && newData().acceptedBidId is string && newData().acceptedBidId != ''
+          && b.jobId == jobId
+          && newData().contractorId == b.contractorId
+          && newData().contractorName == b.contractorName
+          && newData().company == b.company
+          && newData().price == b.amount
+          && newData().scheduledDate == b.availableDate
+          && newData().window == b.window;
+      }
+
+      // Either party moves the booking date or arrival window.
+      function rescheduling() {
+        return (isOwner() || isPro())
+          && resource.data.status in ['scheduled', 'in_progress']
+          && changed().hasOnly(['scheduledDate', 'window'])
+          && isDate(newData().scheduledDate)
+          && newData().window in windows();
+      }
+
+      // Only the booked contractor starts work.
+      function starting() {
+        return isPro()
+          && resource.data.status == 'scheduled'
+          && newData().status == 'in_progress'
+          && changed().hasOnly(['status']);
+      }
+
+      // Either party marks a booked job complete.
+      function completing() {
+        return (isOwner() || isPro())
+          && resource.data.status in ['scheduled', 'in_progress']
+          && newData().status == 'complete'
+          && changed().hasOnly(['status', 'completedAt'])
+          && newData().completedAt is int;
+      }
+
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.postedBy == me()
-                    && request.resource.data.status == 'open';
-      allow update: if signedIn()
-                    && (resource.data.postedBy == me() || resource.data.contractorId == me())
-                    && request.resource.data.postedBy == resource.data.postedBy;
-      allow delete: if signedIn() && resource.data.postedBy == me();
+      allow create: if signedIn() && validNewJob(newData());
+      allow update: if signedIn() && (accepting() || rescheduling() || starting() || completing());
+      // Only open jobs can be deleted; booked jobs keep their work orders and receipts.
+      allow delete: if signedIn() && isOwner() && resource.data.status == 'open';
     }
 
-    // Contractors bid on open jobs; they edit or withdraw their own. The homeowner can clear bids when deleting a job.
+    // ---------- bids ----------
+    // One bid per contractor per job, stored at bids/{jobId}_{contractorId}.
     match /bids/{bidId} {
+      function validBidFields(d) {
+        return str(d.company, 1, 60)
+          && positive(d.amount, 10000000)
+          && positive(d.days, 365)
+          && isDate(d.availableDate)
+          && d.window in windows()
+          && str(d.get('message', ''), 0, 1000)
+          && d.createdAt is int;
+      }
+
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.contractorId == me()
-                    && job(request.resource.data.jobId).status == 'open';
-      allow update: if signedIn() && resource.data.contractorId == me()
-                    && request.resource.data.contractorId == me();
-      allow delete: if signedIn()
-                    && (resource.data.contractorId == me() || job(resource.data.jobId).postedBy == me());
+
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'contractorId', 'contractorName', 'company', 'amount',
+                                                  'days', 'availableDate', 'window', 'message', 'createdAt'])
+                    && newData().jobId is string
+                    && bidId == newData().jobId + '_' + me()
+                    && newData().contractorId == me()
+                    && newData().contractorName == myName()
+                    && job(newData().jobId).status == 'open'
+                    && job(newData().jobId).postedBy != me()
+                    && validBidFields(newData());
+
+      // Contractors edit their own bid only while the job is still open.
+      allow update: if signedIn()
+                    && resource.data.contractorId == me()
+                    && job(resource.data.jobId).status == 'open'
+                    && changed().hasOnly(['company', 'amount', 'days', 'availableDate', 'window', 'message', 'createdAt'])
+                    && validBidFields(newData());
+
+      // Contractors withdraw their own bid unless it's the one that was booked.
+      // Homeowners clear bids only when deleting their own open job.
+      allow delete: if signedIn() && (
+                      (resource.data.contractorId == me()
+                        && (!jobExists(resource.data.jobId)
+                            || job(resource.data.jobId).acceptedBidId != bidId))
+                      || (jobExists(resource.data.jobId)
+                          && job(resource.data.jobId).postedBy == me()
+                          && job(resource.data.jobId).status == 'open'));
     }
 
-    // The booked contractor writes work orders; the homeowner can only approve them.
+    // ---------- work orders ----------
+    // The booked contractor writes them; the homeowner can only approve them, once.
     match /workorders/{woId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.by == me()
-                    && job(request.resource.data.jobId).contractorId == me();
-      allow update: if signedIn() && job(resource.data.jobId).postedBy == me()
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'approvedAt']);
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'by', 'number', 'lines', 'notes', 'approved', 'createdAt'])
+                    && newData().by == me()
+                    && newData().jobId is string
+                    && job(newData().jobId).contractorId == me()
+                    && job(newData().jobId).status in ['scheduled', 'in_progress']
+                    && newData().number is int && newData().number >= 1 && newData().number <= 999
+                    && newData().lines is list && newData().lines.size() >= 1 && newData().lines.size() <= 50
+                    && str(newData().get('notes', ''), 0, 1000)
+                    && newData().approved == false
+                    && newData().createdAt is int;
+      allow update: if signedIn()
+                    && job(resource.data.jobId).postedBy == me()
+                    && resource.data.approved == false
+                    && changed().hasOnly(['approved', 'approvedAt'])
+                    && newData().approved == true
+                    && newData().approvedAt is int;
     }
 
-    // Either party on a booked job can log receipts.
+    // ---------- receipts ----------
+    // Either party on a booked, unfinished job can log receipts and delete their own.
     match /receipts/{receiptId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.by == me()
-                    && (job(request.resource.data.jobId).postedBy == me()
-                        || job(request.resource.data.jobId).contractorId == me());
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'by', 'vendor', 'amount', 'date', 'note', 'createdAt'])
+                    && newData().by == me()
+                    && newData().jobId is string
+                    && (job(newData().jobId).postedBy == me() || job(newData().jobId).contractorId == me())
+                    && job(newData().jobId).status in ['scheduled', 'in_progress']
+                    && str(newData().vendor, 1, 60)
+                    && positive(newData().amount, 1000000)
+                    && isDate(newData().date)
+                    && str(newData().get('note', ''), 0, 120)
+                    && newData().createdAt is int;
       allow delete: if signedIn() && resource.data.by == me();
     }
   }

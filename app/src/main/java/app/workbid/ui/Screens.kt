@@ -75,7 +75,7 @@ fun AuthScreen(vm: AppViewModel) {
         Spacer(Modifier.height(8.dp))
         if (signUp) {
             OutlinedTextField(
-                name, { name = it }, label = { Text("Your name") }, singleLine = true,
+                name, { name = it.take(60) }, label = { Text("Your name") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
