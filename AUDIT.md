@@ -2,20 +2,59 @@
 
 Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build config, README. Code was read, not run.
 
-**Verdict: not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
+> **Update 2026-11-20: blockers B1–B6 are fixed** on branch `fix/audit-blockers`:
+> - The app compiles (`:app:compileDebugKotlin`).
+> - 21 rules tests pass in the Firestore emulator (`rules-test/`).
+> - **Not yet done:** running the app on a device, and republishing `firestore.rules` in the Firebase console. The High and Medium items below are still open.
+> - **Also fixed:** deleting a job is now a single batch (Medium), and the sign-up name is capped at 60 characters to match the rules.
+
+> **Update 2026-11-20 (UI and hand-off): more items addressed** on branch `feature/ui-and-handoff`:
+> - **H3** fixed: in-app account deletion (Account → Delete account, with password confirmation). A web deletion page template is in the hand-off guide.
+> - **H4** fixed: Forgot password, verification email on sign-up, and resend/refresh on the Account screen.
+> - **H5** fixed: release signing via `keystore.properties`, and the README and guide now use signed bundles and Play testing tracks.
+> - **H6** fixed: compileSdk/targetSdk 36. Also AGP 8.11.1, Gradle 8.13, Kotlin 2.0.21.
+> - **H7** partly fixed: links in `AppConfig.kt`, plus privacy policy and terms templates in the guide. The owner still has to publish them.
+> - **Added:** in-app reporting of jobs and bids (`reports` collection, with rules and tests), which Google Play's user-generated content policy requires.
+> - **Medium:** the accept dialog no longer promises notifications; work orders and receipts are blocked on completed jobs (since B4–B6).
+> - **Low:** git initialised, R8 and resource shrinking on (release ≈ 2.7 MB), versionCode 2.
+> - **Still open:** H8 (App Check: code done, console enforcement not yet), money as cents, notifications, Crashlytics. Chapter 10 of `HANDOFF-GUIDE.pdf` has the order.
+
+> **Update 2026-11-20 (read privacy and loading):**
+> - **H1** fixed: bids are readable only by the bidder and the job's homeowner (`jobOwner` on each bid). Work orders and receipts only by the two parties (`parties` array). Booked and finished jobs only by their parties and by contractors who bid on them.
+> - **H2** fixed: no whole-collection listeners. The app runs scoped queries (`status == open`, `postedBy == me`, `contractorId == me`, `contractorId`/`jobOwner == me` for bids, `parties array-contains me`), plus one-document listeners for jobs a contractor bid on and lost.
+> - 28 rules tests pass, including 6 new ones for read privacy and the exact queries the app runs. The queries were also run as the seeded demo users against the emulators.
+> - **Deploy note:** this app version needs the new rules, and the old app version can't run under them. Publish `firestore.rules` together with this release. Bids, work orders and receipts written before this change lack the new fields and become invisible. That's fine pre-launch; otherwise backfill them in the console.
+
+> **Update 2026-11-20 (blocking and sales tax):**
+> - **Blocking:** Block on a bid or in a job's ⋮ menu; list and unblock under Account. Enforced by the rules (`blockedBy()`), not just hidden in the app.
+> - **Sales tax per bid** replaces the fixed 5% GST: GST 5%, HST 13/14/15%, or none. Copied onto the job when accepted; work orders use it.
+> - 34 rules tests pass.
+
+> **Update 2026-11-20 (profiles and messages):**
+> - **Contractor profiles:** trades, service area, years, licence, insurance and an about section, edited under Account. Homeowners see badges on each bid and the full profile from the bid or booking. Labelled as self-reported.
+> - **Messages:** a chat per booked job between the homeowner and the contractor, with unread counts on the job screen. Rules allow only the two parties, only after booking, with no edits or deletes.
+> - The Data safety answers and privacy policy template in the guide now include in-app messages and profiles.
+> - 39 rules tests pass.
+
+> **Update 2026-11-20 (moderation and App Check):**
+> - **Report review screen** for admins (Account → Owner tools): see the reported job or bid, remove it (open jobs only, with their bids), mark reviewed, or reopen. Admins are `admins/{uid}` documents created in the console. Rules enforce every step.
+> - **H8 partly fixed:** App Check is installed (Play Integrity in release, debug provider in debug, skipped for emulator builds). Nothing is enforced until the owner turns it on in the console, as the guide's chapter 10 describes.
+> - 43 rules tests pass.
+
+**Verdict (original audit): not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
 
 ---
 
 ## Blockers: fix before anyone else uses it
 
-### B1. A wrong password still "signs you in"
+### ✅ B1. A wrong password still "signs you in"
 `ui/AppViewModel.kt:76-95` and `:102-121`. If Firebase sign-in or sign-up throws for any reason (wrong password, no such account, no network, email already in use), the `catch` creates a fake local user (`user_<hash of email>`) and lets them in. That user has no Firebase session, so every write afterwards is rejected by the rules, and the rejection is hidden (see B2). Line 29 also prefers that saved fake `local_uid` over the real Firebase user on later launches.
 
 **Real-world effect:** someone mistypes their password, gets in anyway, posts a job or a bid, sees "Job posted", and nobody else ever sees it.
 
 **Fix:** remove the local fallback entirely. Show the Firebase error (wrong password, account exists, offline) and stay on the sign-in screen. Take `uid` only from `auth.currentUser` (or an `AuthStateListener`).
 
-### B2. Failed saves are reported as success
+### ✅ B2. Failed saves are reported as success
 - `data/Repo.kt:68-95`: `add`, `set`, `update` and `delete` all `catch (_: Exception) { }` and then write a copy into local memory anyway.
 - `ui/AppViewModel.kt:170-173`: `act()` shows the *success* message for every error that isn't PERMISSION_DENIED (`else ok`).
 
@@ -23,7 +62,7 @@ Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build con
 
 **Fix:** let exceptions reach `act()`, show a real error message, and drop the local copy. Firestore already has an offline cache, so writes made while offline queue and sync on their own. No hand-written fallback is needed.
 
-### B3. The lists show fake and local data instead of the database
+### ✅ B3. The lists show fake and local data instead of the database
 `data/Repo.kt:34-62`. Each listener sends Firestore snapshots *and* the in-memory `localFlow` into the same stream. Whenever a local list changes (after every write, see B2), the screen switches to that local list. It holds the hard-coded demo job "Bathroom Vanity…" by "Alex Morgan", a demo bid from "Apex Plumbing & Tile", and only this session's writes. If the listener errors, it falls back to the demo data too.
 
 Local copies also get made-up IDs (`local_…`, `Repo.kt:69`). Edit or withdraw a bid you just sent and the code calls `update`/`delete` on `bids/local_…`, a document that doesn't exist in Firestore. The error is swallowed, so the real bid never changes.
@@ -32,7 +71,7 @@ Local copies also get made-up IDs (`local_…`, `Repo.kt:69`). Edit or withdraw 
 
 **Fix:** delete the local fallback (`localJobs`…`localReceipts`, the `mapTo*`/`applyDataTo*` helpers, the demo data) and have `listen()` send only Firestore snapshots. Pass errors on through `close(err)` so the existing `catch` in the view model shows them.
 
-### B4. Firestore rules let either side rewrite a booked job
+### ✅ B4. Firestore rules let either side rewrite a booked job
 `firestore.rules:20-22`. Once a job is booked, the homeowner **or** the contractor can update any field except `postedBy`. That means:
 - the contractor can change `price`, mark the job complete, or set `contractorId` to someone else;
 - the homeowner can change the agreed price after booking, or "accept" a made-up contractor ID with no bid behind it, because nothing checks that `acceptedBidId` is a real bid on this job;
@@ -46,13 +85,13 @@ Anyone with the app's public API key can do this from a script, not just from th
 - **Homeowner after booking:** may change only `scheduledDate`, `window`, and complete.
 - **Delete:** only while `status == 'open'`.
 
-### B5. Bid rules are too loose
+### ✅ B5. Bid rules are too loose
 `firestore.rules:28-34`.
 - A homeowner can bid on their own job. Add `job(...).postedBy != me()`.
 - A contractor can place any number of bids on one job. Use a fixed ID such as `bids/{jobId}_{uid}` so each contractor gets one.
 - A contractor can still edit `amount` after being booked. Allow updates only while the job is `open`, and keep `jobId` unchanged.
 
-### B6. No checks on what gets written
+### ✅ B6. No checks on what gets written
 No rule checks field types, sizes or ranges. Anyone with the API key can write negative prices, 1 MB descriptions, `approved: true` on a new work order, or any `postedByName` (for example "Workbid Support"). Add `is string`/`is number`, `size()` limits, `> 0` checks and `keys().hasOnly([...])` to every create and update. `users/{id}` (`:13`) also accepts any fields at all.
 
 ---

@@ -2,53 +2,302 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ---------- helpers ----------
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
     function job(id) { return get(/databases/$(database)/documents/jobs/$(id)).data; }
+    function jobExists(id) { return exists(/databases/$(database)/documents/jobs/$(id)); }
+    function bid(id) { return get(/databases/$(database)/documents/bids/$(id)).data; }
+    function iBidOn(jobId) { return exists(/databases/$(database)/documents/bids/$(jobId + '_' + me())); }
+    function myName() { return get(/databases/$(database)/documents/users/$(me())).data.name; }
 
-    // Display names
+    function newData() { return request.resource.data; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function money(v) { return v is number && v >= 0 && v <= 10000000; }
+    function positive(v, max) { return v is number && v > 0 && v <= max; }
+    function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function optDate(v) { return v == '' || isDate(v); }
+
+    function trades() {
+      return ['Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Roofing', 'HVAC',
+              'Flooring', 'Landscaping', 'Appliances', 'General repair'];
+    }
+    function windows() { return ['8–10 AM', '10 AM–12 PM', '12–2 PM', '2–4 PM', '4–6 PM', 'Flexible']; }
+    function timings() { return ['Flexible', 'Within 2 weeks', 'This week', 'Urgent (24–48 h)']; }
+    // Sales tax rates a contractor can charge: none, GST 5%, HST 13/14/15%. Must match TAXES in ui/Components.kt.
+    function taxRates() { return [0, 0.05, 0.13, 0.14, 0.15]; }
+    // True if `owner` has blocked the signed-in user.
+    function blockedBy(owner) { return exists(/databases/$(database)/documents/users/$(owner)/blocked/$(me())); }
+    // App owners: a document at admins/{uid}, created by hand in the Firebase console. Nobody can create one from the app.
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(me())); }
+    function reportReasons() {
+      return ['Spam or scam', 'Offensive or abusive', 'Fake or misleading', 'Contact details or personal info', 'Something else'];
+    }
+
+    // ---------- users: display names ----------
     match /users/{userId} {
       allow read: if signedIn();
-      allow write: if signedIn() && me() == userId;
+      allow create, update: if signedIn() && me() == userId
+                    && newData().keys().hasOnly(['name', 'createdAt'])
+                    && str(newData().name, 1, 60)
+                    && newData().createdAt is int;
+      allow delete: if signedIn() && me() == userId;
+
+      // People this user has blocked. Private: only the user can see or change their list.
+      match /blocked/{otherId} {
+        allow read, delete: if signedIn() && me() == userId;
+        allow create, update: if signedIn() && me() == userId && otherId != userId
+                    && newData().keys().hasOnly(['name', 'createdAt'])
+                    && str(newData().name, 0, 60)
+                    && newData().createdAt is int;
+      }
     }
 
-    // Homeowners post jobs. Only the homeowner or the booked contractor can change one.
+    // ---------- jobs ----------
+    // Lifecycle: open → scheduled → in_progress → complete (scheduled → complete is also allowed).
     match /jobs/{jobId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.postedBy == me()
-                    && request.resource.data.status == 'open';
-      allow update: if signedIn()
-                    && (resource.data.postedBy == me() || resource.data.contractorId == me())
-                    && request.resource.data.postedBy == resource.data.postedBy;
-      allow delete: if signedIn() && resource.data.postedBy == me();
+      function isOwner() { return resource.data.postedBy == me(); }
+      function isPro() { return resource.data.contractorId != '' && resource.data.contractorId == me(); }
+
+      function validNewJob(d) {
+        return d.keys().hasOnly(['ref', 'title', 'category', 'area', 'description', 'budgetMin', 'budgetMax',
+                                 'timing', 'preferDate', 'status', 'postedBy', 'postedByName', 'createdAt',
+                                 'acceptedBidId', 'contractorId'])
+          && d.keys().hasAll(['title', 'category', 'area', 'description', 'status', 'postedBy', 'postedByName', 'createdAt'])
+          && str(d.get('ref', ''), 0, 12)
+          && str(d.title, 1, 90)
+          && d.category in trades()
+          && str(d.area, 1, 60)
+          && str(d.description, 1, 2000)
+          && money(d.get('budgetMin', 0)) && money(d.get('budgetMax', 0))
+          && (d.get('budgetMax', 0) == 0 || d.get('budgetMin', 0) <= d.get('budgetMax', 0))
+          && (d.get('timing', '') == '' || d.get('timing', '') in timings())
+          && optDate(d.get('preferDate', ''))
+          && d.status == 'open'
+          && d.postedBy == me()
+          && d.postedByName == myName()
+          && d.createdAt is int
+          && d.get('acceptedBidId', '') == ''
+          && d.get('contractorId', '') == '';
+      }
+
+      // Homeowner accepts a bid: every booking field must copy a real bid on this job.
+      function accepting() {
+        let b = bid(newData().acceptedBidId);
+        return isOwner()
+          && resource.data.status == 'open'
+          && changed().hasOnly(['status', 'acceptedBidId', 'contractorId', 'contractorName', 'company',
+                                'price', 'scheduledDate', 'window', 'taxRate'])
+          && newData().status == 'scheduled'
+          && newData().acceptedBidId is string && newData().acceptedBidId != ''
+          && b.jobId == jobId
+          && newData().contractorId == b.contractorId
+          && newData().contractorName == b.contractorName
+          && newData().company == b.company
+          && newData().price == b.amount
+          && newData().scheduledDate == b.availableDate
+          && newData().window == b.window
+          && newData().get('taxRate', 0.05) == b.get('taxRate', 0.05);
+      }
+
+      // Either party moves the booking date or arrival window.
+      function rescheduling() {
+        return (isOwner() || isPro())
+          && resource.data.status in ['scheduled', 'in_progress']
+          && changed().hasOnly(['scheduledDate', 'window'])
+          && isDate(newData().scheduledDate)
+          && newData().window in windows();
+      }
+
+      // Only the booked contractor starts work.
+      function starting() {
+        return isPro()
+          && resource.data.status == 'scheduled'
+          && newData().status == 'in_progress'
+          && changed().hasOnly(['status']);
+      }
+
+      // Either party marks a booked job complete.
+      function completing() {
+        return (isOwner() || isPro())
+          && resource.data.status in ['scheduled', 'in_progress']
+          && newData().status == 'complete'
+          && changed().hasOnly(['status', 'completedAt'])
+          && newData().completedAt is int;
+      }
+
+      // Open jobs are public to signed-in users. Booked and finished jobs are visible only to the
+      // homeowner, the booked contractor, and contractors who bid on them (so they can see the outcome).
+      // The app's queries (status == open, postedBy == me, contractorId == me) each fit this rule.
+      allow list: if signedIn() && (resource.data.status == 'open'
+                                    || resource.data.postedBy == me()
+                                    || resource.data.contractorId == me());
+      allow get: if signedIn() && (resource.data.status == 'open'
+                                   || resource.data.postedBy == me()
+                                   || resource.data.contractorId == me()
+                                   || iBidOn(jobId)
+                                   || isAdmin());
+      allow create: if signedIn() && validNewJob(newData());
+      allow update: if signedIn() && (accepting() || rescheduling() || starting() || completing());
+      // Only open jobs can be deleted; booked jobs keep their work orders and receipts.
+      // Admins can also remove a reported open job.
+      allow delete: if signedIn() && (isOwner() || isAdmin()) && resource.data.status == 'open';
     }
 
-    // Contractors bid on open jobs; they edit or withdraw their own. The homeowner can clear bids when deleting a job.
+    // ---------- bids ----------
+    // One bid per contractor per job, stored at bids/{jobId}_{contractorId}.
     match /bids/{bidId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.contractorId == me()
-                    && job(request.resource.data.jobId).status == 'open';
-      allow update: if signedIn() && resource.data.contractorId == me()
-                    && request.resource.data.contractorId == me();
-      allow delete: if signedIn()
-                    && (resource.data.contractorId == me() || job(resource.data.jobId).postedBy == me());
+      function validBidFields(d) {
+        return str(d.company, 1, 60)
+          && positive(d.amount, 10000000)
+          && positive(d.days, 365)
+          && isDate(d.availableDate)
+          && d.window in windows()
+          && str(d.get('message', ''), 0, 1000)
+          && d.get('taxRate', 0.05) in taxRates()
+          && d.createdAt is int;
+      }
+
+      // Sealed bids: only the contractor who placed it and the homeowner who posted the job can read a bid.
+      allow read: if signedIn() && (resource.data.contractorId == me() || resource.data.jobOwner == me() || isAdmin());
+
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'jobOwner', 'contractorId', 'contractorName', 'company', 'amount',
+                                                  'days', 'availableDate', 'window', 'message', 'taxRate', 'createdAt'])
+                    && newData().jobId is string
+                    && newData().jobOwner == job(newData().jobId).postedBy
+                    && bidId == newData().jobId + '_' + me()
+                    && newData().contractorId == me()
+                    && newData().contractorName == myName()
+                    && job(newData().jobId).status == 'open'
+                    && job(newData().jobId).postedBy != me()
+                    && !blockedBy(job(newData().jobId).postedBy)
+                    && validBidFields(newData());
+
+      // Contractors edit their own bid only while the job is still open.
+      allow update: if signedIn()
+                    && resource.data.contractorId == me()
+                    && job(resource.data.jobId).status == 'open'
+                    && !blockedBy(resource.data.jobOwner)
+                    && changed().hasOnly(['company', 'amount', 'days', 'availableDate', 'window', 'message', 'taxRate', 'createdAt'])
+                    && validBidFields(newData());
+
+      // Contractors withdraw their own bid unless it's the one that was booked.
+      // Homeowners clear bids only when deleting their own open job.
+      allow delete: if signedIn() && (
+                      (resource.data.contractorId == me()
+                        && (!jobExists(resource.data.jobId)
+                            || job(resource.data.jobId).acceptedBidId != bidId))
+                      || (jobExists(resource.data.jobId)
+                          && (job(resource.data.jobId).postedBy == me() || isAdmin())
+                          && job(resource.data.jobId).status == 'open'));
     }
 
-    // The booked contractor writes work orders; the homeowner can only approve them.
+    // ---------- work orders ----------
+    // The booked contractor writes them; the homeowner can only approve them, once.
     match /workorders/{woId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.by == me()
-                    && job(request.resource.data.jobId).contractorId == me();
-      allow update: if signedIn() && job(resource.data.jobId).postedBy == me()
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved', 'approvedAt']);
+      // Only the two people on the job can read it; `parties` is [homeowner, contractor].
+      allow read: if signedIn() && me() in resource.data.parties;
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'by', 'parties', 'number', 'lines', 'notes', 'approved', 'createdAt'])
+                    && newData().by == me()
+                    && newData().jobId is string
+                    && newData().parties == [job(newData().jobId).postedBy, me()]
+                    && job(newData().jobId).contractorId == me()
+                    && job(newData().jobId).status in ['scheduled', 'in_progress']
+                    && newData().number is int && newData().number >= 1 && newData().number <= 999
+                    && newData().lines is list && newData().lines.size() >= 1 && newData().lines.size() <= 50
+                    && str(newData().get('notes', ''), 0, 1000)
+                    && newData().approved == false
+                    && newData().createdAt is int;
+      allow update: if signedIn()
+                    && job(resource.data.jobId).postedBy == me()
+                    && resource.data.approved == false
+                    && changed().hasOnly(['approved', 'approvedAt'])
+                    && newData().approved == true
+                    && newData().approvedAt is int;
     }
 
-    // Either party on a booked job can log receipts.
-    match /receipts/{receiptId} {
+    // ---------- admins ----------
+    // You can check whether you're an admin. Only the console can add or remove admins.
+    match /admins/{userId} {
+      allow get: if signedIn() && me() == userId;
+    }
+
+    // ---------- contractor profiles ----------
+    // Public to signed-in users (shown with bids). Only the owner writes their own. Self-reported, unverified.
+    match /profiles/{userId} {
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.by == me()
-                    && (job(request.resource.data.jobId).postedBy == me()
-                        || job(request.resource.data.jobId).contractorId == me());
+      allow create, update: if signedIn() && me() == userId
+                    && newData().keys().hasOnly(['company', 'about', 'trades', 'serviceArea', 'years', 'licence', 'insured', 'updatedAt'])
+                    && str(newData().company, 0, 60)
+                    && str(newData().about, 0, 500)
+                    && newData().trades is list && newData().trades.size() <= 10
+                    && newData().trades.toSet().hasOnly(trades())
+                    && str(newData().serviceArea, 0, 60)
+                    && newData().years is int && newData().years >= 0 && newData().years <= 80
+                    && str(newData().licence, 0, 80)
+                    && newData().insured is bool
+                    && newData().updatedAt is int;
+      allow delete: if signedIn() && me() == userId;
+    }
+
+    // ---------- messages ----------
+    // Between the homeowner and the booked contractor only, once a job is booked. Nobody can edit or delete them,
+    // so both sides keep the same record.
+    match /messages/{msgId} {
+      allow read: if signedIn() && me() in resource.data.parties;
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'parties', 'by', 'text', 'createdAt'])
+                    && newData().by == me()
+                    && newData().jobId is string
+                    && job(newData().jobId).status in ['scheduled', 'in_progress', 'complete']
+                    && newData().parties == [job(newData().jobId).postedBy, job(newData().jobId).contractorId]
+                    && me() in newData().parties
+                    && str(newData().text, 1, 1000)
+                    && newData().createdAt is int;
+    }
+
+    // ---------- reports ----------
+    // Anyone signed in can report a job or bid. Only admins can read reports and change their status
+    // (Account → Review reports in the app, or Firestore → reports in the console).
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+                    && changed().hasOnly(['status', 'reviewedAt', 'reviewedBy'])
+                    && newData().status in ['new', 'reviewed', 'removed']
+                    && newData().reviewedAt is int
+                    && newData().reviewedBy == me();
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['type', 'targetId', 'jobId', 'reason', 'details', 'by', 'status', 'createdAt'])
+                    && newData().type in ['job', 'bid']
+                    && str(newData().targetId, 1, 200)
+                    && str(newData().jobId, 1, 200)
+                    && newData().reason in reportReasons()
+                    && str(newData().get('details', ''), 0, 500)
+                    && newData().by == me()
+                    && newData().status == 'new'
+                    && newData().createdAt is int;
+    }
+
+    // ---------- receipts ----------
+    // Either party on a booked, unfinished job can log receipts and delete their own.
+    match /receipts/{receiptId} {
+      allow read: if signedIn() && me() in resource.data.parties;
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'by', 'parties', 'vendor', 'amount', 'date', 'note', 'createdAt'])
+                    && newData().by == me()
+                    && newData().jobId is string
+                    && newData().parties == [job(newData().jobId).postedBy, job(newData().jobId).contractorId]
+                    && (job(newData().jobId).postedBy == me() || job(newData().jobId).contractorId == me())
+                    && job(newData().jobId).status in ['scheduled', 'in_progress']
+                    && str(newData().vendor, 1, 60)
+                    && positive(newData().amount, 1000000)
+                    && isDate(newData().date)
+                    && str(newData().get('note', ''), 0, 120)
+                    && newData().createdAt is int;
       allow delete: if signedIn() && resource.data.by == me();
     }
   }

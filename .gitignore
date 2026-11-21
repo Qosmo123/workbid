@@ -4,3 +4,7 @@ local.properties
 .idea/
 *.iml
 app/google-services.json
+firestore-debug.log
+keystore.properties
+*.jks
+*.keystore

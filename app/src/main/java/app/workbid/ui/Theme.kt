@@ -1,11 +1,17 @@
 package app.workbid.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 // Blueprint teal for actions, tape-measure yellow for highlights, cool workshop neutrals.
 private val Light = lightColorScheme(
@@ -60,10 +66,33 @@ private val Dark = darkColorScheme(
     onError = Color(0xFF2A0C07),
 )
 
+// Bold, compact headings; comfortable body text for reading job details on a phone.
+private val base = Typography()
+private val WorkbidType = Typography(
+    displaySmall = base.displaySmall.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
+    headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, fontSize = 26.sp, letterSpacing = (-0.3).sp),
+    headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, letterSpacing = (-0.2).sp),
+    titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
+    titleMedium = base.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp),
+    bodyLarge = base.bodyLarge.copy(lineHeight = 24.sp),
+    bodyMedium = base.bodyMedium.copy(fontSize = 15.sp, lineHeight = 22.sp),
+    labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
+)
+
+private val WorkbidShapes = Shapes(
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp),
+)
+
 @Composable
 fun WorkbidTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (isSystemInDarkTheme()) Dark else Light,
+        typography = WorkbidType,
+        shapes = WorkbidShapes,
         content = content,
     )
 }

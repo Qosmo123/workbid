@@ -6,11 +6,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,8 +24,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,7 +49,24 @@ val CATS = listOf(
 )
 val WINDOWS = listOf("8–10 AM", "10 AM–12 PM", "12–2 PM", "2–4 PM", "4–6 PM", "Flexible")
 val TIMING = listOf("Flexible", "Within 2 weeks", "This week", "Urgent (24–48 h)")
-const val GST = 0.05
+/** Sales tax a contractor can charge. Rates must match taxRates() in firestore.rules. */
+data class TaxOption(val label: String, val short: String, val rate: Double)
+val TAXES = listOf(
+    TaxOption("GST 5% (BC, AB, territories, and others)", "GST", 0.05),
+    TaxOption("HST 13% (Ontario)", "HST", 0.13),
+    TaxOption("HST 14% (Nova Scotia)", "HST", 0.14),
+    TaxOption("HST 15% (NB, NL, PEI)", "HST", 0.15),
+    TaxOption("No sales tax (not registered)", "no tax", 0.0),
+)
+fun taxOption(rate: Double): TaxOption =
+    TAXES.find { kotlin.math.abs(it.rate - rate) < 1e-9 } ?: TaxOption("Tax ${trimNum(rate * 100)}%", "tax", rate)
+/** "+ GST", "+ HST", or "no tax" — shown next to a pre-tax price. */
+fun plusTax(rate: Double): String = if (rate <= 0.0) "no sales tax" else "+ ${taxOption(rate).short}"
+fun withTax(amount: Double, rate: Double): Double = amount * (1 + rate)
+// Must match reportReasons() in firestore.rules.
+val REPORT_REASONS = listOf(
+    "Spam or scam", "Offensive or abusive", "Fake or misleading", "Contact details or personal info", "Something else",
+)
 
 private val CAD: NumberFormat = NumberFormat.getCurrencyInstance(Locale.CANADA)
 fun money(v: Double): String = CAD.format(v)
@@ -129,13 +154,18 @@ fun RefText(text: String, modifier: Modifier = Modifier) {
     )
 }
 
+/** Body text with tabular (evenly spaced) digits, for money. */
+@Composable
+fun moneyStyle() = LocalTextStyle.current.copy(fontFeatureSettings = "tnum")
+
 @Composable
 fun MoneyText(v: Double, big: Boolean = false) {
+    // Tabular figures keep digits evenly spaced without a typewriter look.
     Text(
         money(v),
-        fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = if (big) 20.sp else 15.sp,
+        fontWeight = FontWeight.Bold,
+        fontSize = if (big) 21.sp else 15.sp,
+        style = moneyStyle(),
     )
 }
 
@@ -148,18 +178,93 @@ fun ScreenHeader(title: String, sub: String) {
 }
 
 @Composable
-fun EmptyState(title: String, body: String, action: (@Composable () -> Unit)? = null) {
-    OutlinedCard(Modifier.fillMaxWidth()) {
+fun EmptyState(
+    title: String,
+    body: String,
+    icon: ImageVector? = null,
+    action: (@Composable () -> Unit)? = null,
+) {
+    OutlinedCard(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
         Column(
-            Modifier.fillMaxWidth().padding(24.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-            action?.invoke()
+            if (icon != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    shape = CircleShape,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, Modifier.size(28.dp)) }
+                }
+            }
+            Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+            Text(
+                body, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
+            )
+            if (action != null) {
+                Spacer(Modifier.height(4.dp))
+                action()
+            }
         }
     }
+}
+
+/** A tinted card that tells people what happens next, so nobody is left guessing. */
+@Composable
+fun NextStepCard(title: String, body: String, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(Icons.Default.Info, contentDescription = null, Modifier.padding(top = 2.dp).size(20.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(body, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+/** Grey placeholder cards shown while the first data arrives, instead of a misleading empty state. */
+@Composable
+fun LoadingCards(count: Int = 3) {
+    val shimmer = MaterialTheme.colorScheme.surfaceContainerHighest
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        repeat(count) {
+            OutlinedCard(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.fillMaxWidth(0.35f).height(10.dp).clip(RoundedCornerShape(4.dp)).background(shimmer))
+                    Box(Modifier.fillMaxWidth(0.8f).height(16.dp).clip(RoundedCornerShape(4.dp)).background(shimmer))
+                    Box(Modifier.fillMaxWidth(0.6f).height(10.dp).clip(RoundedCornerShape(4.dp)).background(shimmer))
+                }
+            }
+        }
+    }
+}
+
+/** Uppercase label above a group of list items. */
+@Composable
+fun GroupLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        letterSpacing = 1.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp),
+    )
 }
 
 @Composable
@@ -193,7 +298,8 @@ fun Section(title: String, onAdd: (() -> Unit)? = null, content: @Composable Col
 @Composable
 fun JobCard(
     job: HomeJob,
-    bidCount: Int,
+    /** Shown only to the job's owner; pass null to hide it (other people's bids are private). */
+    bidCount: Int?,
     onClick: () -> Unit,
     tag: String? = null,
     tagStatus: String = "pending",
@@ -218,7 +324,7 @@ fun JobCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (job.status == "open") "Budget ${budgetText(job)}" else job.company,
+                    if (job.status != "open") job.company else if (job.budgetMin <= 0 && job.budgetMax <= 0) "Open budget" else "Budget ${budgetText(job)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
@@ -228,12 +334,12 @@ fun JobCard(
                         val (bg, fg) = statusColors(tagStatus)
                         Pill(tag, bg, fg)
                     }
-                    job.status == "open" -> Text(
+                    job.status == "open" && bidCount != null -> Text(
                         "$bidCount bid${if (bidCount == 1) "" else "s"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    else -> MoneyText(job.price)
+                    job.status != "open" -> MoneyText(job.price)
                 }
             }
         }
@@ -241,6 +347,64 @@ fun JobCard(
 }
 
 // ---------- form fields ----------
+val decimalKeys = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next)
+
+/** Text field with a "$" prefix, number keyboard, and an inline error under it. */
+@Composable
+fun MoneyField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    error: String? = null,
+    help: String? = null,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { v -> onChange(v.filter { it.isDigit() || it == '.' }.take(10)) },
+        label = { Text(label) },
+        prefix = { Text("$") },
+        singleLine = true,
+        isError = error != null,
+        supportingText = (error ?: help)?.let { { Text(it) } },
+        keyboardOptions = decimalKeys,
+        modifier = modifier,
+    )
+}
+
+/** Single-line text field with an inline error and an optional character counter. */
+@Composable
+fun FormField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    max: Int,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    error: String? = null,
+    minLines: Int = 1,
+    showCount: Boolean = false,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onChange(it.take(max)) },
+        label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
+        singleLine = minLines == 1,
+        minLines = minLines,
+        isError = error != null,
+        supportingText = when {
+            error != null -> ({ Text(error) })
+            showCount -> ({ Text("${value.length} / $max", Modifier.fillMaxWidth(), textAlign = TextAlign.End) })
+            else -> null
+        },
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = if (minLines == 1) ImeAction.Next else ImeAction.Default,
+        ),
+        modifier = modifier.fillMaxWidth(),
+    )
+}
 @Composable
 fun Picker(label: String, value: String, options: List<String>, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
     var open by remember { mutableStateOf(false) }

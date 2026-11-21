@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,22 +7,49 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+// Release signing details live in keystore.properties (never committed). See HANDOFF-GUIDE.pdf, chapter "Make the release file".
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+// Build with -Pworkbid.emulator=true to point a debug build at the local Firebase emulators instead of live data.
+val useEmulator = (project.findProperty("workbid.emulator") as String?)?.toBoolean() ?: false
+
 android {
     namespace = "app.workbid"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.workbid"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 36
+        // Raise versionCode by 1 for every upload to Google Play. versionName is what people see.
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    signingConfigs {
+        if (keystoreProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "USE_EMULATOR", useEmulator.toString())
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("boolean", "USE_EMULATOR", "false")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
     compileOptions {
@@ -32,6 +61,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -51,5 +81,9 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.3.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
+    // App Check: proves requests come from the real Workbid app. Release builds use Play Integrity,
+    // debug builds use a debug token (see AppCheckSetup.kt in src/debug and src/release).
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    debugImplementation("com.google.firebase:firebase-appcheck-debug")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 }
