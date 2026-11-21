@@ -46,6 +46,7 @@ sealed interface Screen {
     data object PostJob : Screen
     data object Account : Screen
     data object ProfileForm : Screen
+    data object Reports : Screen
     data class Chat(val id: String) : Screen
     data class Detail(val id: String) : Screen
     data class BidForm(val id: String) : Screen
@@ -185,7 +186,7 @@ fun MainScreen(vm: AppViewModel) {
             is Screen.WorkOrderForm -> Screen.Detail(s.id)
             is Screen.ReceiptForm -> Screen.Detail(s.id)
             is Screen.Chat -> Screen.Detail(s.id)
-            Screen.ProfileForm -> Screen.Account
+            Screen.ProfileForm, Screen.Reports -> Screen.Account
             else -> Screen.Tabs
         }
     }
@@ -199,7 +200,10 @@ fun MainScreen(vm: AppViewModel) {
             account = { screen = Screen.Account },
         )
         Screen.PostJob -> PostJobForm(vm, back)
-        Screen.Account -> AccountScreen(vm, snackbar, back) { screen = Screen.ProfileForm }
+        Screen.Account -> AccountScreen(vm, snackbar, back, editProfile = { screen = Screen.ProfileForm }) {
+            screen = Screen.Reports
+        }
+        Screen.Reports -> ReportsScreen(vm, snackbar, back)
         Screen.ProfileForm -> ProfileFormScreen(vm, back)
         is Screen.Chat -> ChatScreen(vm, s.id, snackbar, back)
         is Screen.Detail -> JobDetailScreen(vm, s.id, snackbar, back) { screen = it }

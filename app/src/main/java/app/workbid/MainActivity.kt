@@ -13,6 +13,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         connectEmulatorsIfRequested()
+        // The emulators ignore App Check, so only install it when talking to the real Firebase project.
+        if (!BuildConfig.USE_EMULATOR) AppCheckSetup.install()
         enableEdgeToEdge()
         setContent {
             WorkbidTheme {

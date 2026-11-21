@@ -30,6 +30,8 @@ service cloud.firestore {
     function taxRates() { return [0, 0.05, 0.13, 0.14, 0.15]; }
     // True if `owner` has blocked the signed-in user.
     function blockedBy(owner) { return exists(/databases/$(database)/documents/users/$(owner)/blocked/$(me())); }
+    // App owners: a document at admins/{uid}, created by hand in the Firebase console. Nobody can create one from the app.
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(me())); }
     function reportReasons() {
       return ['Spam or scam', 'Offensive or abusive', 'Fake or misleading', 'Contact details or personal info', 'Something else'];
     }
@@ -135,11 +137,13 @@ service cloud.firestore {
       allow get: if signedIn() && (resource.data.status == 'open'
                                    || resource.data.postedBy == me()
                                    || resource.data.contractorId == me()
-                                   || iBidOn(jobId));
+                                   || iBidOn(jobId)
+                                   || isAdmin());
       allow create: if signedIn() && validNewJob(newData());
       allow update: if signedIn() && (accepting() || rescheduling() || starting() || completing());
       // Only open jobs can be deleted; booked jobs keep their work orders and receipts.
-      allow delete: if signedIn() && isOwner() && resource.data.status == 'open';
+      // Admins can also remove a reported open job.
+      allow delete: if signedIn() && (isOwner() || isAdmin()) && resource.data.status == 'open';
     }
 
     // ---------- bids ----------
@@ -157,7 +161,7 @@ service cloud.firestore {
       }
 
       // Sealed bids: only the contractor who placed it and the homeowner who posted the job can read a bid.
-      allow read: if signedIn() && (resource.data.contractorId == me() || resource.data.jobOwner == me());
+      allow read: if signedIn() && (resource.data.contractorId == me() || resource.data.jobOwner == me() || isAdmin());
 
       allow create: if signedIn()
                     && newData().keys().hasOnly(['jobId', 'jobOwner', 'contractorId', 'contractorName', 'company', 'amount',
@@ -187,7 +191,7 @@ service cloud.firestore {
                         && (!jobExists(resource.data.jobId)
                             || job(resource.data.jobId).acceptedBidId != bidId))
                       || (jobExists(resource.data.jobId)
-                          && job(resource.data.jobId).postedBy == me()
+                          && (job(resource.data.jobId).postedBy == me() || isAdmin())
                           && job(resource.data.jobId).status == 'open'));
     }
 
@@ -214,6 +218,12 @@ service cloud.firestore {
                     && changed().hasOnly(['approved', 'approvedAt'])
                     && newData().approved == true
                     && newData().approvedAt is int;
+    }
+
+    // ---------- admins ----------
+    // You can check whether you're an admin. Only the console can add or remove admins.
+    match /admins/{userId} {
+      allow get: if signedIn() && me() == userId;
     }
 
     // ---------- contractor profiles ----------
@@ -251,9 +261,15 @@ service cloud.firestore {
     }
 
     // ---------- reports ----------
-    // Anyone signed in can report a job or bid. Nobody can read, change or delete reports from the app;
-    // the owner reviews them in the Firebase console (Firestore → reports).
+    // Anyone signed in can report a job or bid. Only admins can read reports and change their status
+    // (Account → Review reports in the app, or Firestore → reports in the console).
     match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+                    && changed().hasOnly(['status', 'reviewedAt', 'reviewedBy'])
+                    && newData().status in ['new', 'reviewed', 'removed']
+                    && newData().reviewedAt is int
+                    && newData().reviewedBy == me();
       allow create: if signedIn()
                     && newData().keys().hasOnly(['type', 'targetId', 'jobId', 'reason', 'details', 'by', 'status', 'createdAt'])
                     && newData().type in ['job', 'bid']

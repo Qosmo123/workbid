@@ -311,7 +311,7 @@
   </div>
 
   <div class="box ok"><span class="t">After launch, every week</span>
-    <p>Check reports in Firebase (Firestore → reports), answer Play Store reviews, and text a contractor whenever a job goes 24 hours without a bid. Chapter 6 has the full checklist.</p>
+    <p>Check reports in the app (Account → Owner tools → Review reports), answer Play Store reviews, and text a contractor whenever a job goes 24 hours without a bid. Chapter 6 has the full checklist.</p>
   </div>
 </section>
 
@@ -847,21 +847,39 @@ keyPassword=your-key-password</pre>
   <div class="cols">
     <div>
       <p>Anyone can report a job (⋮ menu, top right of a job) or a bid (the <em>Report</em> link next to <em>Accept</em>). They pick a reason and can add details. The person reported is never told who reported them.</p>
-      <p>Each report becomes a document in the <code>reports</code> collection, with the reason, the job and item IDs, who sent it, and <code>status: "new"</code>. Nobody can read reports from the app; only you, in the console.</p>
+      <p>Each report is saved with the reason, the job or bid, who sent it, and the status "new". Only admins can read reports: you, once you've done the one-time setup below.</p>
     </div>
     <figure class="shot" style="max-width:2.1in;margin:0 auto"><img src="images/11-report.png"><figcaption>What people see when they report a job</figcaption></figure>
   </div>
+  <h3>One-time setup: make yourself an admin</h3>
+  <ol class="steps">
+    <li><b>Find your user ID.</b> Sign up in the app with your own email. Then in the Firebase console open <em>Authentication</em> → <em>Users</em>, find your email, and copy the long code in the <em>User UID</em> column.</li>
+    <li><b>Create the admins list.</b> <em>Firestore Database</em> → <em>Data</em> → <em>+ Start collection</em>. Collection ID: <code>admins</code>. Click <em>Next</em>.</li>
+    <li><b>Add yourself.</b> Document ID: paste your User UID. Add one field: name <code>note</code>, type string, value <code>owner</code>. Click <em>Save</em>.</li>
+    <li><b>Check it worked.</b> Close and reopen the app, then go to Account. You'll see a new <em>Owner tools</em> section with <em>Review reports</em>.</li>
+  </ol>
+  <p class="small muted">Nobody can make themselves an admin from the app; only someone with console access can add a document to <code>admins</code>. To remove an admin, delete their document.</p>
+
+  <h3>Reviewing a report in the app</h3>
+  <ol class="steps">
+    <li><b>Open it.</b> Account → Owner tools → <em>Review reports</em>. New reports are at the top, each showing the reason, the reporter's note, and the job or bid they reported.</li>
+    <li><b>Decide.</b> If it breaks your terms (spam, abuse, fake jobs, phone numbers or addresses in public posts), tap <em>Remove job</em> or <em>Remove bid</em>. Removing a job also removes its bids. Only open jobs can be removed this way.</li>
+    <li><b>Or close it.</b> If it's fine, tap <em>Mark reviewed</em>. Closed reports are kept under <em>Show closed reports</em>, and you can reopen one.</li>
+    <li><b>Repeat offender?</b> Disable their account in the console (next section, step 3).</li>
+  </ol>
+
+  <h3>The same thing in the console (for booked jobs, or if you prefer)</h3>
   <ol class="steps">
     <li><b>Open reports.</b> Firestore → Data → <code>reports</code>. New ones have <code>status: "new"</code>. Each has the reason, details, the <code>jobId</code> and <code>targetId</code> (the job or bid ID), and <code>by</code> (who reported).</li>
     <li><b>Look at the content.</b> Open <code>jobs</code> → the document with that jobId (or <code>bids</code> → the targetId).</li>
     <li><b>Act.</b> For spam or abuse, delete the job or bid document. For a repeat offender, find their user ID in the <code>postedBy</code> or <code>contractorId</code> field, go to Authentication, search the user list for that ID, and <em>disable</em> the account.</li>
-    <li><b>Close it.</b> Edit the report's <code>status</code> field to <code>"done"</code> so you know it's handled.</li>
+    <li><b>Close it.</b> Edit the report's <code>status</code> field to <code>"reviewed"</code> (or <code>"removed"</code>) so it leaves the app's New list.</li>
   </ol>
   <div class="box warn"><span class="t">Watch out: the console bypasses the rules</span>
     <p>Edits you make in the console aren't checked by the security rules, so you can break things the app relies on. Safe actions: deleting an open job (also delete its bids), deleting a bid that isn't the accepted one, disabling a user. Avoid editing booked or completed jobs by hand.</p>
   </div>
 
-  <h2>Helping someone who's stuck</h2>
+  <h2 style="break-before: page">Helping someone who's stuck</h2>
   <table>
     <tr><th>They say</th><th>You do</th></tr>
     <tr><td>"I forgot my password"</td><td>Tell them to tap <em>Forgot password?</em> on the sign-in screen. The email can land in spam. Or send it from Authentication → ⋮ → Reset password.</td></tr>
@@ -1131,8 +1149,8 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
     <tr><td>✓</td><td><strong>Limit who can read what.</strong> Done: bids are sealed (only the bidder and the homeowner see them), and work orders and receipts are visible only to the two people on the job.</td><td>Privacy, and fair bidding.</td></tr>
     <tr><td>✓</td><td><strong>Load only what each person needs.</strong> Done: the app asks only for open jobs and the person's own items.</td><td>Costs and free-plan limits, and speed as you grow.</td></tr>
     <tr><td>3</td><td><strong>Push notifications</strong> for new bids, bookings and approvals (Firebase Cloud Messaging plus a Cloud Function; needs the Blaze plan).</td><td>The biggest product gap. Today people have to open the app to notice anything.</td></tr>
-    <tr><td>3b</td><td><strong>Firebase App Check</strong> (Play Integrity).</td><td>Stops scripts that aren't your app from talking to your database. About an hour of setup in the Firebase console plus a small code change.</td></tr>
-    <tr><td>4</td><td><strong>An admin screen for reports.</strong> Blocking is done: anyone can block a user from their bid or job, and blocked contractors can't bid on that homeowner's jobs.</td><td>Easier moderation than the Firebase console as you grow.</td></tr>
+    <tr><td>3b</td><td><strong>Turn on Firebase App Check.</strong> The app code is done. In the console: <em>App Check</em> → <em>Apps</em> → register the Android app with <em>Play Integrity</em> (it asks for the SHA-256 from Play Console → <em>App integrity</em>). Add the debug token from Android Studio's Logcat under <em>Manage debug tokens</em>. Watch the <em>Metrics</em> tab for a week after your release; when nearly all requests show as verified, click <em>Enforce</em> for Cloud Firestore.</td><td>Stops scripts that aren't your app from talking to your database. Enforcing too early blocks people still on old versions.</td></tr>
+    <tr><td>✓</td><td><strong>Moderation.</strong> Done: blocking for everyone, and a report review screen for admins (chapter 6).</td><td>Google expects you to act on reports.</td></tr>
     <tr><td>5</td><td><strong>Photos</strong> on jobs and receipts (Firebase Storage).</td><td>Better bids; homeowners can show the problem.</td></tr>
     <tr><td>6</td><td><strong>Reviews and a "verified" badge.</strong> Contractor profiles are done (trades, experience, licence, insurance, all self-reported).</td><td>Trust, and the basis for a paid "verified" tier where you check licences and insurance.</td></tr>
     <tr><td>7</td><td><strong>Money stored in cents.</strong> Sales tax per bid is done (GST, HST or none).</td><td>Avoids rounding by a cent on large totals.</td></tr>

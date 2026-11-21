@@ -17,7 +17,7 @@ Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build con
 > - **Added:** in-app reporting of jobs and bids (`reports` collection, with rules and tests), which Google Play's user-generated content policy requires.
 > - **Medium:** the accept dialog no longer promises notifications; work orders and receipts are blocked on completed jobs (since B4–B6).
 > - **Low:** git initialised, R8 and resource shrinking on (release ≈ 2.7 MB), versionCode 2.
-> - **Still open:** H8 (App Check), money as cents, notifications, Crashlytics. Chapter 10 of `HANDOFF-GUIDE.pdf` has the order.
+> - **Still open:** H8 (App Check: code done, console enforcement not yet), money as cents, notifications, Crashlytics. Chapter 10 of `HANDOFF-GUIDE.pdf` has the order.
 
 > **Update 2026-11-20 (read privacy and loading):**
 > - **H1** fixed: bids are readable only by the bidder and the job's homeowner (`jobOwner` on each bid). Work orders and receipts only by the two parties (`parties` array). Booked and finished jobs only by their parties and by contractors who bid on them.
@@ -35,6 +35,11 @@ Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build con
 > - **Messages:** a chat per booked job between the homeowner and the contractor, with unread counts on the job screen. Rules allow only the two parties, only after booking, with no edits or deletes.
 > - The Data safety answers and privacy policy template in the guide now include in-app messages and profiles.
 > - 39 rules tests pass.
+
+> **Update 2026-11-20 (moderation and App Check):**
+> - **Report review screen** for admins (Account → Owner tools): see the reported job or bid, remove it (open jobs only, with their bids), mark reviewed, or reopen. Admins are `admins/{uid}` documents created in the console. Rules enforce every step.
+> - **H8 partly fixed:** App Check is installed (Play Integrity in release, debug provider in debug, skipped for emulator builds). Nothing is enforced until the owner turns it on in the console, as the guide's chapter 10 describes.
+> - 43 rules tests pass.
 
 **Verdict (original audit): not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
 

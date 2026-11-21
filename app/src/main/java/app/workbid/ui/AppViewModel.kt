@@ -15,6 +15,7 @@ import app.workbid.data.HomeJob
 import app.workbid.data.LineItem
 import app.workbid.data.Message
 import app.workbid.data.Profile
+import app.workbid.data.Report
 import app.workbid.data.Receipt
 import app.workbid.data.Repo
 import app.workbid.data.WorkOrder
@@ -73,6 +74,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val blockedIds: Set<String> get() = blocked.map { it.uid }.toSet()
     var messages by mutableStateOf(listOf<Message>())
         private set
+
+    /** The app owner (and anyone they add to the "admins" collection) can review reports. */
+    var isAdmin by mutableStateOf(false)
+        private set
+    var reports by mutableStateOf(listOf<Report>())
+        private set
+    private var reportsListener: Job? = null
 
     /** Contractor profiles loaded so far. A key with a null value means "looked, there isn't one". */
     val profiles = mutableStateMapOf<String, Profile?>()
@@ -309,6 +317,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         myBids = emptyList(); bidsOnMyJobs = emptyList()
         jobs = emptyList(); bids = emptyList(); workOrders = emptyList(); receipts = emptyList()
         blocked = emptyList(); messages = emptyList()
+        reportsListener?.cancel(); reportsListener = null
+        isAdmin = false; reports = emptyList()
         profiles.clear(); profileLoads.clear(); lastRead.clear()
     }
 
@@ -338,6 +348,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             collect(Repo.messagesFor(me)) { messages = it.sortedBy { m -> m.createdAt } },
         )
         loadProfile(me)
+        viewModelScope.launch {
+            isAdmin = runCatching { Repo.isAdmin(me) }.getOrDefault(false)
+            if (isAdmin) reportsListener = collect(Repo.reports()) { reports = it.sortedByDescending { r -> r.createdAt } }
+        }
     }
 
     private fun jobsArrived(source: String) {
@@ -677,6 +691,49 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 message = writeError(e)
                 done(false)
+            }
+        }
+    }
+
+    // ---------- moderation (admins only; the rules enforce it) ----------
+    val newReportCount: Int get() = reports.count { it.status == "new" }
+
+    /** Looks up what a report points at, for the review screen. Null if it's gone or can't be read. */
+    suspend fun reportTarget(r: Report): String? = runCatching {
+        if (r.type == "bid") {
+            val b = Repo.get("bids", r.targetId)
+            if (!b.exists()) null else "Bid from ${b.getString("company").orEmpty()}: ${money((b.get("amount") as? Number)?.toDouble() ?: 0.0)}" +
+                (b.getString("message")?.takeIf { it.isNotBlank() }?.let { " · \u201c$it\u201d" } ?: "")
+        } else {
+            val j = Repo.get("jobs", r.targetId)
+            if (!j.exists()) null else "${j.getString("title").orEmpty()} · posted by ${j.getString("postedByName").orEmpty()} " +
+                "(${j.getString("status").orEmpty()})\n${j.getString("description").orEmpty()}"
+        }
+    }.getOrNull()
+
+    fun markReport(r: Report, status: String) {
+        val me = uid ?: return
+        act(if (status == "reviewed") "Marked as reviewed" else "Report reopened") {
+            Repo.update("reports", r.id, mapOf("status" to status, "reviewedAt" to System.currentTimeMillis(), "reviewedBy" to me))
+        }
+    }
+
+    /** Removes the reported job (with its bids) or bid, and closes the report. Only open jobs can be removed. */
+    fun removeReported(r: Report) {
+        val me = uid ?: return
+        act(if (r.type == "bid") "Bid removed" else "Job removed") {
+            val jobBids = if (r.type == "job") Repo.bidsOnJob(r.targetId) else emptyList()
+            Repo.batch { b, db ->
+                if (r.type == "job") {
+                    jobBids.forEach { b.delete(db.collection("bids").document(it.id)) }
+                    b.delete(db.collection("jobs").document(r.targetId))
+                } else {
+                    b.delete(db.collection("bids").document(r.targetId))
+                }
+                b.update(
+                    db.collection("reports").document(r.id),
+                    mapOf("status" to "removed", "reviewedAt" to System.currentTimeMillis(), "reviewedBy" to me),
+                )
             }
         }
     }

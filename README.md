@@ -73,14 +73,14 @@ Data lives in Firestore collections `jobs`, `bids`, `workorders`, `receipts`, `u
 - **Sales tax**: each bid carries `taxRate` (0, 0.05, 0.13, 0.14 or 0.15, matching `TAXES` in `ui/Components.kt`). Accepting a bid copies it onto the job, and work-order totals use it.
 - **Contractor profiles** (`profiles/{uid}`) are readable by anyone signed in and writable only by their owner. Trades must come from the app's list. Everything in them is self-reported.
 - **Messages** can only be sent once a job is booked, only between its homeowner and contractor (`parties`), and can't be edited or deleted.
-- **Reports** can be created by anyone signed in, and can't be read or changed from the app. Review them in the Firebase console.
+- **Reports** can be created by anyone signed in. Only admins can read them, mark them reviewed, or remove the reported open job or bid (Account → Owner tools → Review reports). An admin is anyone with a document at `admins/{uid}`, which can only be created in the Firebase console.
 - **Who can read what**: open jobs are visible to everyone signed in. Booked and finished jobs are visible to their homeowner, the booked contractor, and contractors who bid on them. Bids are sealed: only the bidder and the homeowner (`jobOwner`) can read them. Work orders and receipts are readable only by the two people on the job (`parties`). The app never downloads whole collections; each query in `data/Repo.kt` matches one of these read rules, so a new query must fit a rule or Firestore refuses it.
 - **Every write is validated**: field types, lengths, positive amounts, dates as `yyyy-MM-dd`, and trades, windows, timings and report reasons from the app's lists. Names on jobs and bids must match the poster's `users/{uid}` profile.
 
 **Whenever `firestore.rules` changes, paste it into Firestore → Rules again and Publish.** The lists in `ui/Components.kt` (`CATS`, `WINDOWS`, `TIMING`, `REPORT_REASONS`, and the rates in `TAXES`) must match the lists in the rules exactly.
 
 ### Testing the rules
-`rules-test/` runs the rules against the Firestore emulator (39 tests). It needs Node.js and Java 21 or newer.
+`rules-test/` runs the rules against the Firestore emulator (43 tests). It needs Node.js and Java 21 or newer.
 
 ```
 cd rules-test

@@ -85,6 +85,17 @@ object Repo {
     fun messagesFor(uid: String): Flow<List<Message>> =
         listen(db.collection("messages").whereArrayContains("parties", uid)) { it.toMessage() }
 
+    /** True if admins/{uid} exists. The owner creates that document by hand in the Firebase console. */
+    suspend fun isAdmin(uid: String): Boolean =
+        db.collection("admins").document(uid).get().await().exists()
+
+    /** All reports, for admins only. */
+    fun reports(): Flow<List<Report>> = listen(db.collection("reports")) { it.toReport() }
+
+    /** Every bid on one job, for admins removing a job. */
+    suspend fun bidsOnJob(jobId: String): List<Bid> =
+        db.collection("bids").whereEqualTo("jobId", jobId).get().await().documents.map { it.toBid() }
+
     /** People I've blocked. */
     fun blocked(uid: String): Flow<List<Blocked>> =
         listen(db.collection("users").document(uid).collection("blocked")) { it.toBlocked() }

@@ -74,6 +74,20 @@ data class Message(
     val createdAt: Long = 0,
 )
 
+/** A report about a job or bid, reviewed by the app owner. */
+data class Report(
+    val id: String = "",
+    val type: String = "",          // job | bid
+    val targetId: String = "",
+    val jobId: String = "",
+    val reason: String = "",
+    val details: String = "",
+    val by: String = "",
+    val status: String = "new",     // new | reviewed | removed
+    val createdAt: Long = 0,
+    val reviewedAt: Long = 0,
+)
+
 /** GST 5%, for older bids and jobs saved before tax was chosen per bid. */
 const val DEFAULT_TAX = 0.05
 
@@ -166,6 +180,19 @@ fun DocumentSnapshot.toProfile() = Profile(
 )
 
 fun DocumentSnapshot.toMessage() = Message(id, get("jobId").str(), get("by").str(), get("text").str(), get("createdAt").lng())
+
+fun DocumentSnapshot.toReport() = Report(
+    id = id,
+    type = get("type").str(),
+    targetId = get("targetId").str(),
+    jobId = get("jobId").str(),
+    reason = get("reason").str(),
+    details = get("details").str(),
+    by = get("by").str(),
+    status = get("status").str().ifBlank { "new" },
+    createdAt = get("createdAt").lng(),
+    reviewedAt = get("reviewedAt").lng(),
+)
 
 fun DocumentSnapshot.toBlocked() = Blocked(id, get("name").str(), get("createdAt").lng())
 

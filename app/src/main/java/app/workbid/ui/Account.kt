@@ -33,7 +33,13 @@ import app.workbid.AppConfig
 import app.workbid.BuildConfig
 
 @Composable
-fun AccountScreen(vm: AppViewModel, snackbar: SnackbarHostState, back: () -> Unit, editProfile: () -> Unit) {
+fun AccountScreen(
+    vm: AppViewModel,
+    snackbar: SnackbarHostState,
+    back: () -> Unit,
+    editProfile: () -> Unit,
+    reviewReports: () -> Unit,
+) {
     val context = LocalContext.current
     var editName by remember { mutableStateOf(false) }
     var howItWorks by remember { mutableStateOf(false) }
@@ -89,6 +95,17 @@ fun AccountScreen(vm: AppViewModel, snackbar: SnackbarHostState, back: () -> Uni
                         OutlinedButton(onClick = { vm.resendVerification() }) { Text("Send again") }
                         TextButton(onClick = { vm.refreshAccount() }) { Text("I've verified") }
                     }
+                }
+            }
+
+            // ---- owner tools (only for accounts listed in the "admins" collection) ----
+            if (vm.isAdmin) {
+                Section("Owner tools") {
+                    val n = vm.newReportCount
+                    SettingRow(
+                        Icons.Default.Warning, "Review reports",
+                        if (n == 0) "No new reports" else "$n new report${if (n == 1) "" else "s"} to review",
+                    ) { reviewReports() }
                 }
             }
 

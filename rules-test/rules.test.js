@@ -238,7 +238,7 @@ const report = (by, over = {}) => ({
   type: 'job', targetId: 'j1', jobId: 'j1', reason: 'Spam or scam', details: '', by, status: 'new',
   createdAt: now(), ...over,
 });
-test('reports: anyone signed in can file one; nobody can read or change them', async () => {
+test("reports: anyone signed in can file one; non-admins can't read or change them", async () => {
   await seedOpenJobWithBids();
   const ref = await assertSucceeds(addDoc(collection(db(PRO), 'reports'), report(PRO)));
   await assertFails(getDoc(doc(db(PRO), 'reports', ref.id)));
@@ -420,4 +420,54 @@ test('messages: rejected on open jobs, from outsiders, as someone else, or empty
 test('messages: still allowed after the job is complete', async () => {
   await seedBookedJob('complete');
   await assertSucceeds(addDoc(collection(db(HOME), 'messages'), msg(HOME, { text: 'Thanks, great work' })));
+});
+
+// ---------- moderation (admins) ----------
+const ADMIN = 'admin1';
+async function seedAdmin() {
+  await seed(async (f) => setDoc(doc(f, 'admins', ADMIN), { note: 'owner' }));
+}
+const review = (status = 'reviewed', by = ADMIN) => ({ status, reviewedAt: now(), reviewedBy: by });
+
+test('admins: nobody can make themselves an admin; you can check your own status', async () => {
+  await assertFails(setDoc(doc(db(PRO), 'admins', PRO), { note: 'me' }));
+  await seedAdmin();
+  await assertSucceeds(getDoc(doc(db(ADMIN), 'admins', ADMIN)));
+  await assertSucceeds(getDoc(doc(db(PRO), 'admins', PRO)));                    // not an admin: reads "doesn't exist"
+  await assertFails(getDoc(doc(db(PRO), 'admins', ADMIN)));
+  await assertFails(getDocs(collection(db(PRO), 'admins')));
+  await assertFails(deleteDoc(doc(db(ADMIN), 'admins', ADMIN)));
+});
+test('admins: read and review reports; others cannot', async () => {
+  await seedOpenJobWithBids(); await seedAdmin();
+  const r = await assertSucceeds(addDoc(collection(db(PRO), 'reports'), report(PRO)));
+  await assertSucceeds(getDocs(collection(db(ADMIN), 'reports')));
+  await assertFails(getDocs(collection(db(HOME), 'reports')));
+  await assertSucceeds(updateDoc(doc(db(ADMIN), 'reports', r.id), review()));
+  await assertFails(updateDoc(doc(db(ADMIN), 'reports', r.id), review('deleted')));
+  await assertFails(updateDoc(doc(db(ADMIN), 'reports', r.id), review('reviewed', PRO)));       // must sign as yourself
+  await assertFails(updateDoc(doc(db(ADMIN), 'reports', r.id), { reason: 'Something else' }));
+  await assertFails(updateDoc(doc(db(HOME), 'reports', r.id), review('reviewed', HOME)));
+  await assertFails(deleteDoc(doc(db(ADMIN), 'reports', r.id)));
+});
+test('admins: remove a reported open job with its bids; not a booked one', async () => {
+  await seedOpenJobWithBids(); await seedAdmin();
+  const r = await assertSucceeds(addDoc(collection(db(PRO), 'reports'), report(PRO)));
+  const f = db(ADMIN);
+  await assertSucceeds(getDoc(doc(f, 'jobs', 'j1')));
+  await assertSucceeds(getDocs(query(collection(f, 'bids'), where('jobId', '==', 'j1'))));
+  const b = writeBatch(f);
+  b.delete(doc(f, 'bids', `j1_${PRO}`));
+  b.delete(doc(f, 'bids', `j1_${PRO2}`));
+  b.delete(doc(f, 'jobs', 'j1'));
+  b.update(doc(f, 'reports', r.id), review('removed'));
+  await assertSucceeds(b.commit());
+  await env.clearFirestore(); await seedUsers(); await seedAdmin(); await seedBookedJob();
+  await assertFails(deleteDoc(doc(db(ADMIN), 'jobs', 'j1')));
+  await assertFails(deleteDoc(doc(db(STRANGER), 'bids', `j1_${PRO2}`)));
+});
+test('admins: remove a single reported bid on an open job', async () => {
+  await seedOpenJobWithBids(); await seedAdmin();
+  await assertSucceeds(deleteDoc(doc(db(ADMIN), 'bids', `j1_${PRO2}`)));
+  await assertFails(deleteDoc(doc(db(STRANGER), 'bids', `j1_${PRO}`)));
 });

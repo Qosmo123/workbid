@@ -152,6 +152,12 @@ async function main() {
         { desc: 'Labour', qty: 3.5, rate: 85 },
       ],
     });
+    // Hana is also an admin in the demo, so Account shows Owner tools → Review reports.
+    await setDoc(doc(f, 'admins', 'demo-hana'), { note: 'demo owner' });
+    await setDoc(doc(f, 'reports', 'report-demo-1'), {
+      type: 'job', targetId: 'outlets', jobId: 'outlets', reason: 'Contact details or personal info',
+      details: 'The description used to have a phone number in it.', by: 'demo-tom', status: 'new', createdAt: now - 5 * 3600000,
+    });
     await setDoc(doc(f, 'profiles', 'demo-pat'), {
       company: 'Harbour Trades Co.', trades: ['Plumbing', 'Painting', 'Appliances', 'General repair'],
       serviceArea: 'Greater Victoria', years: 14, licence: 'Red Seal plumber', insured: true, updatedAt: now - 30 * day,
