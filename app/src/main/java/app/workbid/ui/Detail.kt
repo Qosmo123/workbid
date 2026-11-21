@@ -2,6 +2,7 @@
 
 package app.workbid.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,7 +12,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
@@ -29,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import app.workbid.data.Bid
 import app.workbid.data.HomeJob
 import app.workbid.data.LineItem
+import app.workbid.data.Profile
 import app.workbid.data.WorkOrder
 
 // ---------------- job detail ----------------
@@ -47,7 +52,7 @@ fun JobDetailScreen(
     }
     val isOwner = job.postedBy == vm.uid
     val isPro = job.contractorId.isNotBlank() && job.contractorId == vm.uid
-    val bids = vm.bidsFor(job.id)
+    val bids = vm.shownBidsFor(job.id)
     val myBid = vm.myBid(job.id)
     val wos = vm.workOrdersFor(job.id)
     val pendingWos = wos.count { !it.approved }
@@ -59,6 +64,8 @@ fun JobDetailScreen(
     var editSchedule by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var reporting by remember { mutableStateOf<Triple<String, String, String>?>(null) } // type, id, label
+    var blocking by remember { mutableStateOf<Pair<String, String>?>(null) } // uid, name
+    var viewingProfile by remember { mutableStateOf<Pair<String, String>?>(null) } // uid, name
 
     val canAct = (isOwner || isPro) && job.status in listOf("scheduled", "in_progress")
 
@@ -90,6 +97,11 @@ fun JobDetailScreen(
                                     text = { Text("Report this job") },
                                     leadingIcon = { Icon(Icons.Default.Warning, null) },
                                     onClick = { menu = false; reporting = Triple("job", job.id, "this job") },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Block ${job.postedByName.ifBlank { "this homeowner" }}") },
+                                    leadingIcon = { Icon(Icons.Default.Clear, null) },
+                                    onClick = { menu = false; blocking = job.postedBy to job.postedByName.ifBlank { "This homeowner" } },
                                 )
                             }
                         }
@@ -146,12 +158,27 @@ fun JobDetailScreen(
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         MoneyText(job.price, big = true)
-                                        Muted("+ GST")
+                                        Muted(plusTax(job.taxRate))
                                     }
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Icon(Icons.Default.DateRange, null, Modifier.size(18.dp))
                                     Text("${fdate(job.scheduledDate)} · ${job.window}", fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                        if (isOwner || isPro) {
+                            val unread = vm.unreadCount(job.id)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { go(Screen.Chat(job.id)) }) {
+                                    Icon(Icons.Default.Email, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(if (unread > 0) "Messages · $unread new" else "Messages")
+                                }
+                                if (isOwner) OutlinedButton(onClick = { viewingProfile = job.contractorId to job.company }) {
+                                    Icon(Icons.Default.Person, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Profile")
                                 }
                             }
                         }
@@ -182,8 +209,12 @@ fun JobDetailScreen(
                             if (bids.isEmpty()) Muted("No bids yet. Contractors can see this job now; you'll see their bids here as they come in.")
                             else Muted("Sorted lowest price first. Look at the date and message too, not just the price.")
                             bids.forEach { b ->
+                                LaunchedEffect(b.contractorId) { vm.loadProfile(b.contractorId) }
                                 BidCard(b, onAccept = { confirmAccept = b },
-                                    onReport = { reporting = Triple("bid", b.id, "the bid from ${b.company}") })
+                                    profile = vm.profiles[b.contractorId],
+                                    onProfile = { viewingProfile = b.contractorId to b.company },
+                                    onReport = { reporting = Triple("bid", b.id, "the bid from ${b.company}") },
+                                    onBlock = { blocking = b.contractorId to b.company.ifBlank { b.contractorName } })
                             }
                         }
                     }
@@ -252,7 +283,11 @@ fun JobDetailScreen(
             title = { Text("Book ${b.company}?") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Fact("Price", "${money(b.amount)} + GST = ${money(b.amount * (1 + GST))}")
+                    Fact(
+                        "Price",
+                        if (b.taxRate > 0) "${money(b.amount)} ${plusTax(b.taxRate)} = ${money(withTax(b.amount, b.taxRate))}"
+                        else "${money(b.amount)} (no sales tax)",
+                    )
                     Fact("Date", "${fdate(b.availableDate)}, ${b.window}")
                     Text(
                         "The job closes to other bids. You can still change the date or time together afterwards.",
@@ -309,6 +344,31 @@ fun JobDetailScreen(
             dismissButton = { TextButton(onClick = { confirmComplete = false }) { Text("Not yet") } },
         )
     }
+    viewingProfile?.let { (otherUid, name) ->
+        ProfileDialog(vm, otherUid, name) { viewingProfile = null }
+    }
+    blocking?.let { (otherUid, name) ->
+        AlertDialog(
+            onDismissRequest = { blocking = null },
+            icon = { Icon(Icons.Default.Clear, null) },
+            title = { Text("Block $name?") },
+            text = {
+                Text(
+                    if (isOwner) "Their bids on your open jobs are removed, and they can't bid on your jobs again. " +
+                        "They aren't told. You can unblock them in Account."
+                    else "You won't see their jobs in Find work any more. They aren't told. You can unblock them in Account."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    vm.block(otherUid, name)
+                    blocking = null
+                    if (!isOwner && job.status == "open" && myBid == null) back()
+                }) { Text("Block") }
+            },
+            dismissButton = { TextButton(onClick = { blocking = null }) { Text("Cancel") } },
+        )
+    }
     reporting?.let { (type, id, label) ->
         ReportDialog(label, onDismiss = { reporting = null }) { reason, details ->
             vm.report(type, id, job.id, reason, details)
@@ -350,7 +410,7 @@ private fun NextStep(job: HomeJob, isOwner: Boolean, isPro: Boolean, bidCount: I
             myBid != null -> "Bid sent" to
                 "The homeowner is reviewing bids. You can edit or withdraw yours until they accept one."
             else -> "Interested?" to
-                "Send your price before GST, how many days it'll take, and the date you can be there."
+                "Send your price before tax, how many days it'll take, and the date you can be there."
         }
         "scheduled" -> when {
             isPro -> "You're booked" to
@@ -410,7 +470,7 @@ private fun Fact(label: String, value: String) {
 }
 
 @Composable
-private fun Muted(text: String) {
+internal fun Muted(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
@@ -447,7 +507,14 @@ private fun ReportDialog(label: String, onDismiss: () -> Unit, onSend: (String, 
 }
 
 @Composable
-private fun BidCard(b: Bid, onAccept: (() -> Unit)?, onReport: (() -> Unit)? = null) {
+private fun BidCard(
+    b: Bid,
+    onAccept: (() -> Unit)?,
+    onReport: (() -> Unit)? = null,
+    onBlock: (() -> Unit)? = null,
+    profile: Profile? = null,
+    onProfile: (() -> Unit)? = null,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -457,14 +524,24 @@ private fun BidCard(b: Bid, onAccept: (() -> Unit)?, onReport: (() -> Unit)? = n
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+                Column(
+                    Modifier.weight(1f).then(if (onProfile != null) Modifier.clickable(onClick = onProfile) else Modifier),
+                ) {
                     Text(b.company, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Muted("${b.contractorName.ifBlank { "Contractor" }} · sent ${ago(b.createdAt)}")
+                    if (onProfile != null) Text(
+                        "View profile ›", style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     MoneyText(b.amount, big = true)
-                    Muted("+ GST")
+                    Muted(plusTax(b.taxRate))
                 }
+            }
+            val badges = profileBadges(profile)
+            if (badges.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                badges.forEach { Pill(it, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer) }
             }
             Text(
                 "Can come ${fdate(b.availableDate)}, ${b.window} · about ${trimNum(b.days)} day${if (b.days == 1.0) "" else "s"}",
@@ -472,11 +549,14 @@ private fun BidCard(b: Bid, onAccept: (() -> Unit)?, onReport: (() -> Unit)? = n
             )
             if (b.message.isNotBlank()) Text("“${b.message}”", style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (onAccept != null || onReport != null) {
+            if (onAccept != null || onReport != null || onBlock != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (onAccept != null) Button(onClick = onAccept, modifier = Modifier.weight(1f)) { Text("Accept this bid") }
                     if (onReport != null) TextButton(onClick = onReport) {
                         Text("Report", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (onBlock != null) TextButton(onClick = onBlock) {
+                        Text("Block", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -509,7 +589,7 @@ private fun WorkOrderCard(job: HomeJob, w: WorkOrder, canApprove: Boolean, appro
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Totals(w.subtotal)
+            Totals(w.subtotal, job.taxRate)
             if (w.notes.isNotBlank()) Muted(w.notes)
             if (canApprove) Button(onClick = { confirm = true }, modifier = Modifier.fillMaxWidth()) { Text("Approve work order") }
         }
@@ -517,8 +597,13 @@ private fun WorkOrderCard(job: HomeJob, w: WorkOrder, canApprove: Boolean, appro
     if (confirm) {
         AlertDialog(
             onDismissRequest = { confirm = false },
-            title = { Text("Approve ${money(w.subtotal * (1 + GST))}?") },
-            text = { Text("You're agreeing to these line items and the total including GST. Approval can't be undone.") },
+            title = { Text("Approve ${money(withTax(w.subtotal, job.taxRate))}?") },
+            text = {
+                Text(
+                    "You're agreeing to these line items and the total" +
+                        (if (job.taxRate > 0) " including ${taxOption(job.taxRate).short}" else "") + ". Approval can't be undone."
+                )
+            },
             confirmButton = { Button(onClick = { confirm = false; approve() }) { Text("Approve") } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
         )
@@ -528,11 +613,11 @@ private fun WorkOrderCard(job: HomeJob, w: WorkOrder, canApprove: Boolean, appro
 fun trimNum(v: Double) = if (v % 1.0 == 0.0) v.toInt().toString() else v.toString()
 
 @Composable
-private fun Totals(subtotal: Double) {
+private fun Totals(subtotal: Double, taxRate: Double) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         TotalRow("Subtotal", subtotal, false)
-        TotalRow("GST ${(GST * 100).toInt()}%", subtotal * GST, false)
-        TotalRow("Total", subtotal * (1 + GST), true)
+        if (taxRate > 0) TotalRow("${taxOption(taxRate).short} ${trimNum(Math.round(taxRate * 1000) / 10.0)}%", subtotal * taxRate, false)
+        TotalRow("Total", withTax(subtotal, taxRate), true)
     }
 }
 
@@ -546,7 +631,7 @@ private fun TotalRow(label: String, v: Double, bold: Boolean) {
 
 // ---------------- forms ----------------
 @Composable
-private fun FormScaffold(
+internal fun FormScaffold(
     title: String,
     subtitle: String?,
     back: () -> Unit,
@@ -658,6 +743,7 @@ fun BidFormScreen(vm: AppViewModel, jobId: String, back: () -> Unit) {
     var date by rememberSaveable { mutableStateOf(existing?.availableDate ?: job.preferDate.takeIf { it >= today() } ?: plusDays(3)) }
     var window by rememberSaveable { mutableStateOf(existing?.window?.takeIf { it in WINDOWS } ?: WINDOWS.first()) }
     var note by rememberSaveable { mutableStateOf(existing?.message ?: "") }
+    var taxRate by rememberSaveable { mutableStateOf(existing?.taxRate ?: vm.lastTaxRate()) }
     var tried by rememberSaveable { mutableStateOf(false) }
 
     val amt = amount.toDoubleOrNull()
@@ -675,7 +761,7 @@ fun BidFormScreen(vm: AppViewModel, jobId: String, back: () -> Unit) {
         onSubmit = {
             tried = true
             if (valid) {
-                vm.placeBid(job, company, amt!!, d!!, date, window, note)
+                vm.placeBid(job, company, amt!!, d!!, date, window, note, taxRate)
                 back()
             }
         },
@@ -689,8 +775,8 @@ fun BidFormScreen(vm: AppViewModel, jobId: String, back: () -> Unit) {
         }
         FormField(company, { company = it }, "Business name", 60, placeholder = "e.g. Coastline Plumbing Ltd.", error = companyErr)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MoneyField(amount, { amount = it }, "Price before GST", Modifier.weight(1.5f), error = amountErr,
-                help = amt?.takeIf { it > 0 }?.let { "${money(it * (1 + GST))} with GST" })
+            MoneyField(amount, { amount = it }, "Price before tax", Modifier.weight(1.5f), error = amountErr,
+                help = amt?.takeIf { it > 0 && taxRate > 0 }?.let { "${money(withTax(it, taxRate))} with ${taxOption(taxRate).short}" })
             OutlinedTextField(
                 days, { v -> days = v.filter { it.isDigit() || it == '.' }.take(5) },
                 label = { Text("Days") }, singleLine = true, isError = daysErr != null,
@@ -698,6 +784,15 @@ fun BidFormScreen(vm: AppViewModel, jobId: String, back: () -> Unit) {
                 keyboardOptions = decimalKeys, modifier = Modifier.weight(1f),
             )
         }
+        Picker(
+            "Sales tax you charge", taxOption(taxRate).label, TAXES.map { it.label },
+            { picked -> taxRate = TAXES.first { it.label == picked }.rate }, Modifier.fillMaxWidth(),
+        )
+        Text(
+            "Registered for GST/HST? Pick your rate. Not registered (under \$30,000 a year in sales)? Pick no sales tax.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         DateField("Date you can be there", date, { date = it }, Modifier.fillMaxWidth())
         if (dateErr != null) Text(dateErr, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         Picker("Arrival window", window, WINDOWS, { window = it }, Modifier.fillMaxWidth())
@@ -768,7 +863,7 @@ fun WorkOrderFormScreen(vm: AppViewModel, jobId: String, back: () -> Unit) {
             Text("Add line")
         }
         Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth()) {
-            Box(Modifier.padding(12.dp)) { Totals(parsed.sumOf { it.total }) }
+            Box(Modifier.padding(12.dp)) { Totals(parsed.sumOf { it.total }, job.taxRate) }
         }
         FormField(notes, { notes = it }, "Notes", 1000, minLines = 3, placeholder = "Scope, exclusions, warranty.")
     }

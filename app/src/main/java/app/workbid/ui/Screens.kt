@@ -45,6 +45,8 @@ sealed interface Screen {
     data object Tabs : Screen
     data object PostJob : Screen
     data object Account : Screen
+    data object ProfileForm : Screen
+    data class Chat(val id: String) : Screen
     data class Detail(val id: String) : Screen
     data class BidForm(val id: String) : Screen
     data class WorkOrderForm(val id: String) : Screen
@@ -182,6 +184,8 @@ fun MainScreen(vm: AppViewModel) {
             is Screen.BidForm -> Screen.Detail(s.id)
             is Screen.WorkOrderForm -> Screen.Detail(s.id)
             is Screen.ReceiptForm -> Screen.Detail(s.id)
+            is Screen.Chat -> Screen.Detail(s.id)
+            Screen.ProfileForm -> Screen.Account
             else -> Screen.Tabs
         }
     }
@@ -195,7 +199,9 @@ fun MainScreen(vm: AppViewModel) {
             account = { screen = Screen.Account },
         )
         Screen.PostJob -> PostJobForm(vm, back)
-        Screen.Account -> AccountScreen(vm, snackbar, back)
+        Screen.Account -> AccountScreen(vm, snackbar, back) { screen = Screen.ProfileForm }
+        Screen.ProfileForm -> ProfileFormScreen(vm, back)
+        is Screen.Chat -> ChatScreen(vm, s.id, snackbar, back)
         is Screen.Detail -> JobDetailScreen(vm, s.id, snackbar, back) { screen = it }
         is Screen.BidForm -> BidFormScreen(vm, s.id, back)
         is Screen.WorkOrderForm -> WorkOrderFormScreen(vm, s.id, back)
@@ -294,8 +300,8 @@ fun TabsScreen(
 }
 
 private fun tabCount(vm: AppViewModel, key: String): Int = when (key) {
-    "jobs" -> vm.jobs.count { it.postedBy == vm.uid && it.status == "open" && vm.bidsFor(it.id).isNotEmpty() }
-    "find" -> vm.jobs.count { it.status == "open" && it.postedBy != vm.uid && vm.myBid(it.id) == null }
+    "jobs" -> vm.jobs.count { it.postedBy == vm.uid && it.status == "open" && vm.shownBidsFor(it.id).isNotEmpty() }
+    "find" -> vm.jobs.count { it.status == "open" && it.postedBy != vm.uid && !vm.isBlocked(it.postedBy) && vm.myBid(it.id) == null }
     "bids" -> vm.bids.count { b -> b.contractorId == vm.uid && vm.job(b.jobId)?.status == "open" }
     else -> scheduledJobs(vm).count { it.scheduledDate <= today() }
 }
@@ -363,8 +369,8 @@ fun Steps(lines: List<String>) {
 @Composable
 fun MyJobsTab(vm: AppViewModel, open: (String) -> Unit, post: () -> Unit) {
     val mine = vm.jobs.filter { it.postedBy == vm.uid }.sortedByDescending { it.createdAt }
-    val needsAction = mine.filter { it.status == "open" && vm.bidsFor(it.id).isNotEmpty() }
-    val waiting = mine.filter { it.status == "open" && vm.bidsFor(it.id).isEmpty() }
+    val needsAction = mine.filter { it.status == "open" && vm.shownBidsFor(it.id).isNotEmpty() }
+    val waiting = mine.filter { it.status == "open" && vm.shownBidsFor(it.id).isEmpty() }
     val booked = mine.filter { it.status == "scheduled" || it.status == "in_progress" }
     val done = mine.filter { it.status == "complete" }
     LazyColumn(contentPadding = listPadding, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -380,7 +386,7 @@ fun MyJobsTab(vm: AppViewModel, open: (String) -> Unit, post: () -> Unit) {
         }
         if (needsAction.isNotEmpty()) item { GroupLabel("Bids to review") }
         items(needsAction, key = { it.id }) { j ->
-            val n = vm.bidsFor(j.id).size
+            val n = vm.shownBidsFor(j.id).size
             JobCard(j, n, onClick = { open(j.id) }, tag = "$n bid${if (n == 1) "" else "s"} · review", tagStatus = "open")
         }
         if (waiting.isNotEmpty()) item { GroupLabel("Waiting for bids") }
@@ -394,7 +400,7 @@ fun MyJobsTab(vm: AppViewModel, open: (String) -> Unit, post: () -> Unit) {
 
 @Composable
 fun FindWorkTab(vm: AppViewModel, open: (String) -> Unit) {
-    val openJobs = vm.jobs.filter { it.status == "open" && it.postedBy != vm.uid }.sortedByDescending { it.createdAt }
+    val openJobs = vm.jobs.filter { it.status == "open" && it.postedBy != vm.uid && !vm.isBlocked(it.postedBy) }.sortedByDescending { it.createdAt }
     val cats = listOf("All") + CATS.filter { c -> openJobs.any { it.category == c } }
     var cat by rememberSaveable { mutableStateOf("All") }
     var query by rememberSaveable { mutableStateOf("") }

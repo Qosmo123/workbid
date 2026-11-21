@@ -11,7 +11,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
@@ -31,7 +33,7 @@ import app.workbid.AppConfig
 import app.workbid.BuildConfig
 
 @Composable
-fun AccountScreen(vm: AppViewModel, snackbar: SnackbarHostState, back: () -> Unit) {
+fun AccountScreen(vm: AppViewModel, snackbar: SnackbarHostState, back: () -> Unit, editProfile: () -> Unit) {
     val context = LocalContext.current
     var editName by remember { mutableStateOf(false) }
     var howItWorks by remember { mutableStateOf(false) }
@@ -90,6 +92,18 @@ fun AccountScreen(vm: AppViewModel, snackbar: SnackbarHostState, back: () -> Uni
                 }
             }
 
+            // ---- contractor profile ----
+            Section("Contractor profile") {
+                val p = vm.myProfile
+                SettingRow(
+                    Icons.Default.Build,
+                    if (p == null) "Set up your contractor profile" else p.company.ifBlank { "Your contractor profile" },
+                    if (p == null) "Trades, experience and insurance, shown with your bids"
+                    else listOf(p.trades.joinToString(", "), profileBadges(p).joinToString(" · ")).filter { it.isNotBlank() }
+                        .joinToString(" · ").ifBlank { "Tap to edit" },
+                ) { editProfile() }
+            }
+
             // ---- help ----
             Section("Help") {
                 SettingRow(Icons.Default.Info, "How Workbid works", "A quick tour for homeowners and contractors") { howItWorks = true }
@@ -100,6 +114,30 @@ fun AccountScreen(vm: AppViewModel, snackbar: SnackbarHostState, back: () -> Uni
                     SettingRow(Icons.Default.Email, "Contact support", AppConfig.SUPPORT_EMAIL) {
                         email(AppConfig.SUPPORT_EMAIL, "Workbid help")
                     }
+                }
+            }
+
+            // ---- blocked people ----
+            Section("Blocked people") {
+                if (vm.blocked.isEmpty()) {
+                    Text(
+                        "Nobody. To block someone, tap Block on their bid, or use the ⋮ menu on their job.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    vm.blocked.forEach { b ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Default.Clear, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(b.name.ifBlank { "Workbid user" }, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { vm.unblock(b) }) { Text("Unblock") }
+                        }
+                    }
+                    Text(
+                        "Blocked people can't bid on your jobs, and you won't see their jobs or bids. They aren't told.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 

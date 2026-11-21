@@ -3,13 +3,18 @@ package app.workbid.ui
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.workbid.data.Bid
+import app.workbid.data.Blocked
+import app.workbid.data.DEFAULT_TAX
 import app.workbid.data.HomeJob
 import app.workbid.data.LineItem
+import app.workbid.data.Message
+import app.workbid.data.Profile
 import app.workbid.data.Receipt
 import app.workbid.data.Repo
 import app.workbid.data.WorkOrder
@@ -63,6 +68,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var receipts by mutableStateOf(listOf<Receipt>())
         private set
+    var blocked by mutableStateOf(listOf<Blocked>())
+        private set
+    val blockedIds: Set<String> get() = blocked.map { it.uid }.toSet()
+    var messages by mutableStateOf(listOf<Message>())
+        private set
+
+    /** Contractor profiles loaded so far. A key with a null value means "looked, there isn't one". */
+    val profiles = mutableStateMapOf<String, Profile?>()
+    private val profileLoads = mutableSetOf<String>()
+
+    /** When I last opened each job's messages (kept on this phone only). */
+    private val lastRead = mutableStateMapOf<String, Long>()
 
     /** One-off message shown in a snackbar, then cleared by the UI. */
     var message by mutableStateOf<String?>(null)
@@ -96,10 +113,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun lastCompany(): String = prefs.getString("company", "") ?: ""
+    fun lastTaxRate(): Double = prefs.getFloat("taxRate", DEFAULT_TAX.toFloat()).toDouble().let { r ->
+        TAXES.minByOrNull { kotlin.math.abs(it.rate - r) }?.rate ?: DEFAULT_TAX
+    }
 
     // ---------- lookups ----------
     fun job(id: String) = jobs.find { it.id == id }
+    /** Every bid on a job, including ones from blocked people (needed when deleting the job). */
     fun bidsFor(jobId: String) = bids.filter { it.jobId == jobId }.sortedBy { it.amount }
+    /** Bids to show the homeowner: blocked contractors are hidden. */
+    fun shownBidsFor(jobId: String) = bidsFor(jobId).filter { it.contractorId !in blockedIds }
+    fun isBlocked(uid: String) = uid in blockedIds
     fun myBid(jobId: String) = bids.find { it.jobId == jobId && it.contractorId == uid }
     fun workOrdersFor(jobId: String) = workOrders.filter { it.jobId == jobId }.sortedBy { it.createdAt }
     fun receiptsFor(jobId: String) = receipts.filter { it.jobId == jobId }.sortedBy { it.date }
@@ -201,6 +225,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         batch.delete(db.collection("jobs").document(j.id))
                     }
                     myBids.forEach { batch.delete(db.collection("bids").document(it.id)) }
+                    batch.delete(db.collection("profiles").document(me))
+                    blocked.forEach { batch.delete(db.collection("users").document(me).collection("blocked").document(it.uid)) }
                     batch.delete(db.collection("users").document(me))
                 }
                 user.delete().await()
@@ -282,6 +308,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         openJobs = emptyList(); postedJobs = emptyList(); bookedJobs = emptyList()
         myBids = emptyList(); bidsOnMyJobs = emptyList()
         jobs = emptyList(); bids = emptyList(); workOrders = emptyList(); receipts = emptyList()
+        blocked = emptyList(); messages = emptyList()
+        profiles.clear(); profileLoads.clear(); lastRead.clear()
     }
 
     private fun <T> collect(flow: Flow<List<T>>, assign: (List<T>) -> Unit): Job = viewModelScope.launch {
@@ -306,7 +334,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             collect(Repo.bidsOnJobsOf(me)) { bidsOnMyJobs = it; mergeBids() },
             collect(Repo.workOrdersFor(me)) { workOrders = it },
             collect(Repo.receiptsFor(me)) { receipts = it },
+            collect(Repo.blocked(me)) { blocked = it.sortedBy { b -> b.name.lowercase() } },
+            collect(Repo.messagesFor(me)) { messages = it.sortedBy { m -> m.createdAt } },
         )
+        loadProfile(me)
     }
 
     private fun jobsArrived(source: String) {
@@ -405,10 +436,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun placeBid(
         job: HomeJob, company: String, amount: Double, days: Double,
-        availableDate: String, window: String, note: String,
+        availableDate: String, window: String, note: String, taxRate: Double,
     ) {
         val me = uid ?: return
-        prefs.edit().putString("company", company.trim()).apply()
+        prefs.edit().putString("company", company.trim()).putFloat("taxRate", taxRate.toFloat()).apply()
         // Fields a contractor may change on their own bid while the job is open.
         val editable = mapOf(
             "company" to company.trim(),
@@ -417,6 +448,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             "availableDate" to availableDate,
             "window" to window,
             "message" to note.trim(),
+            "taxRate" to taxRate,
             "createdAt" to System.currentTimeMillis(),
         )
         val existing = myBid(job.id)
@@ -449,6 +481,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 "price" to bid.amount,
                 "scheduledDate" to bid.availableDate,
                 "window" to bid.window,
+                "taxRate" to bid.taxRate,
             )
         )
     }
@@ -535,6 +568,115 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             Repo.batch { b, db ->
                 jobBids.forEach { b.delete(db.collection("bids").document(it.id)) }
                 b.delete(db.collection("jobs").document(job.id))
+            }
+        }
+    }
+
+    /**
+     * Blocks someone. Their jobs disappear from Find work and their bids from my jobs, and the rules stop them
+     * bidding on my jobs. Bids they already placed on my open jobs are deleted.
+     */
+    fun block(otherUid: String, name: String) {
+        val me = uid ?: return
+        if (otherUid.isBlank() || otherUid == me) return
+        val theirBids = bids.filter { b -> b.contractorId == otherUid && job(b.jobId)?.let { it.postedBy == me && it.status == "open" } == true }
+        act("${name.ifBlank { "They" }} blocked. You can unblock them in Account.") {
+            Repo.batch { b, db ->
+                b.set(
+                    db.collection("users").document(me).collection("blocked").document(otherUid),
+                    mapOf("name" to name.take(60), "createdAt" to System.currentTimeMillis()),
+                )
+                theirBids.forEach { b.delete(db.collection("bids").document(it.id)) }
+            }
+        }
+    }
+
+    fun unblock(other: Blocked) {
+        val me = uid ?: return
+        act("${other.name.ifBlank { "They" }} unblocked") {
+            Repo.batch { b, db -> b.delete(db.collection("users").document(me).collection("blocked").document(other.uid)) }
+        }
+    }
+
+    // ---------- contractor profiles ----------
+    val myProfile: Profile? get() = uid?.let { profiles[it] }
+
+    /** Loads a profile once per session. Call from a LaunchedEffect, not during composition. */
+    fun loadProfile(otherUid: String, force: Boolean = false) {
+        if (otherUid.isBlank() || (!force && !profileLoads.add(otherUid))) return
+        profileLoads.add(otherUid)
+        viewModelScope.launch {
+            runCatching { Repo.profile(otherUid) }
+                .onSuccess { profiles[otherUid] = it }
+                .onFailure { profileLoads.remove(otherUid) }
+        }
+    }
+
+    fun saveProfile(
+        company: String, about: String, trades: List<String>, serviceArea: String,
+        years: Int, licence: String, insured: Boolean, done: () -> Unit,
+    ) {
+        val me = uid ?: return
+        val p = Profile(
+            uid = me, company = company.trim().take(60), about = about.trim().take(500),
+            trades = trades.filter { it in CATS }.distinct(), serviceArea = serviceArea.trim().take(60),
+            years = years.coerceIn(0, 80), licence = licence.trim().take(80), insured = insured,
+            updatedAt = System.currentTimeMillis(),
+        )
+        viewModelScope.launch {
+            try {
+                Repo.set(
+                    "profiles", me, mapOf(
+                        "company" to p.company, "about" to p.about, "trades" to p.trades,
+                        "serviceArea" to p.serviceArea, "years" to p.years, "licence" to p.licence,
+                        "insured" to p.insured, "updatedAt" to p.updatedAt,
+                    )
+                )
+                profiles[me] = p
+                if (p.company.isNotBlank()) prefs.edit().putString("company", p.company).apply()
+                message = "Profile saved"
+                done()
+            } catch (e: Exception) {
+                message = writeError(e)
+            }
+        }
+    }
+
+    // ---------- messages ----------
+    fun messagesFor(jobId: String) = messages.filter { it.jobId == jobId }
+
+    fun unreadCount(jobId: String): Int {
+        val seen = lastRead[jobId] ?: prefs.getLong("read_$jobId", 0L)
+        return messages.count { it.jobId == jobId && it.by != uid && it.createdAt > seen }
+    }
+
+    fun markRead(jobId: String) {
+        val newest = messagesFor(jobId).maxOfOrNull { it.createdAt } ?: return
+        if ((lastRead[jobId] ?: 0L) >= newest) return
+        lastRead[jobId] = newest
+        prefs.edit().putLong("read_$jobId", newest).apply()
+    }
+
+    /** Sends a message; [done] gets true if it was saved (or queued offline), false if it was refused. */
+    fun sendMessage(job: HomeJob, text: String, done: (Boolean) -> Unit) {
+        val me = uid ?: return
+        val clean = text.trim().take(1000)
+        if (clean.isBlank()) return done(false)
+        viewModelScope.launch {
+            try {
+                Repo.add(
+                    "messages", mapOf(
+                        "jobId" to job.id,
+                        "parties" to listOf(job.postedBy, job.contractorId),
+                        "by" to me,
+                        "text" to clean,
+                        "createdAt" to System.currentTimeMillis(),
+                    )
+                )
+                done(true)
+            } catch (e: Exception) {
+                message = writeError(e)
+                done(false)
             }
         }
     }

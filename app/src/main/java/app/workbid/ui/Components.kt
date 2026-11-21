@@ -49,7 +49,20 @@ val CATS = listOf(
 )
 val WINDOWS = listOf("8–10 AM", "10 AM–12 PM", "12–2 PM", "2–4 PM", "4–6 PM", "Flexible")
 val TIMING = listOf("Flexible", "Within 2 weeks", "This week", "Urgent (24–48 h)")
-const val GST = 0.05
+/** Sales tax a contractor can charge. Rates must match taxRates() in firestore.rules. */
+data class TaxOption(val label: String, val short: String, val rate: Double)
+val TAXES = listOf(
+    TaxOption("GST 5% (BC, AB, territories, and others)", "GST", 0.05),
+    TaxOption("HST 13% (Ontario)", "HST", 0.13),
+    TaxOption("HST 14% (Nova Scotia)", "HST", 0.14),
+    TaxOption("HST 15% (NB, NL, PEI)", "HST", 0.15),
+    TaxOption("No sales tax (not registered)", "no tax", 0.0),
+)
+fun taxOption(rate: Double): TaxOption =
+    TAXES.find { kotlin.math.abs(it.rate - rate) < 1e-9 } ?: TaxOption("Tax ${trimNum(rate * 100)}%", "tax", rate)
+/** "+ GST", "+ HST", or "no tax" — shown next to a pre-tax price. */
+fun plusTax(rate: Double): String = if (rate <= 0.0) "no sales tax" else "+ ${taxOption(rate).short}"
+fun withTax(amount: Double, rate: Double): Double = amount * (1 + rate)
 // Must match reportReasons() in firestore.rules.
 val REPORT_REASONS = listOf(
     "Spam or scam", "Offensive or abusive", "Fake or misleading", "Contact details or personal info", "Something else",

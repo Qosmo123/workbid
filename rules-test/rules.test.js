@@ -311,3 +311,113 @@ test('workorders and receipts: parties must match the job', async () => {
   await assertFails(addDoc(collection(db(HOME), 'receipts'), rc(HOME, { parties: [HOME, STRANGER] })));
   await assertFails(addDoc(collection(db(HOME), 'receipts'), rc(HOME, { parties: [HOME] })));
 });
+
+// ---------- sales tax per bid ----------
+test('bids: tax rate must be one of the allowed rates', async () => {
+  await seed(async (f) => setDoc(doc(f, 'jobs', 'j1'), jobData()));
+  const id = `j1_${PRO}`;
+  for (const taxRate of [0.07, -0.05, 1, '5%']) {
+    await assertFails(setDoc(doc(db(PRO), 'bids', id), bidData('j1', PRO, 'Pat', { taxRate })));
+  }
+  await assertSucceeds(setDoc(doc(db(PRO), 'bids', id), bidData('j1', PRO, 'Pat', { taxRate: 0.13 })));
+  await assertSucceeds(updateDoc(doc(db(PRO), 'bids', id), { taxRate: 0 }));
+  await assertSucceeds(updateDoc(doc(db(PRO), 'bids', id), { taxRate: 0.0 }));
+});
+test('jobs: accepting copies the bid tax rate exactly', async () => {
+  const b1 = bidData('j1', PRO, 'Pat', { taxRate: 0.13 });
+  await seed(async (f) => {
+    await setDoc(doc(f, 'jobs', 'j1'), jobData());
+    await setDoc(doc(f, 'bids', `j1_${PRO}`), b1);
+  });
+  const ref = doc(db(HOME), 'jobs', 'j1');
+  await assertFails(updateDoc(ref, acceptData(`j1_${PRO}`, b1)));                        // tax left out
+  await assertFails(updateDoc(ref, { ...acceptData(`j1_${PRO}`, b1), taxRate: 0 }));      // tax dropped
+  await assertSucceeds(updateDoc(ref, { ...acceptData(`j1_${PRO}`, b1), taxRate: 0.13 }));
+});
+test('jobs: older bids without a tax rate still accept (GST assumed)', async () => {
+  const { b1 } = await seedOpenJobWithBids();
+  await assertSucceeds(updateDoc(doc(db(HOME), 'jobs', 'j1'), { ...acceptData(`j1_${PRO}`, b1), taxRate: 0.05 }));
+});
+
+// ---------- blocking ----------
+const block = (by, other, name = 'X') => setDoc(doc(db(by), 'users', by, 'blocked', other), { name, createdAt: now() });
+test('blocking: only you can see or change your block list', async () => {
+  await assertSucceeds(block(HOME, PRO, 'Pat'));
+  await assertSucceeds(getDoc(doc(db(HOME), 'users', HOME, 'blocked', PRO)));
+  await assertSucceeds(getDocs(collection(db(HOME), 'users', HOME, 'blocked')));
+  await assertFails(getDoc(doc(db(PRO), 'users', HOME, 'blocked', PRO)));                // the blocked person
+  await assertFails(getDocs(collection(db(STRANGER), 'users', HOME, 'blocked')));
+  await assertFails(block(PRO, PRO));                                                     // yourself
+  await assertFails(setDoc(doc(db(PRO), 'users', HOME, 'blocked', PRO2), { name: 'Q', createdAt: now() }));
+  await assertFails(setDoc(doc(db(HOME), 'users', HOME, 'blocked', PRO2), { name: 'Q', createdAt: now(), note: 'x' }));
+  await assertFails(deleteDoc(doc(db(PRO), 'users', HOME, 'blocked', PRO)));
+  await assertSucceeds(deleteDoc(doc(db(HOME), 'users', HOME, 'blocked', PRO)));
+});
+test('blocking: a blocked contractor cannot bid on or edit bids for that homeowner', async () => {
+  await seedOpenJobWithBids();
+  await seed(async (f) => setDoc(doc(f, 'jobs', 'j2'), jobData()));
+  await block(HOME, PRO, 'Pat');
+  await assertFails(setDoc(doc(db(PRO), 'bids', `j2_${PRO}`), bidData('j2')));
+  await assertFails(updateDoc(doc(db(PRO), 'bids', `j1_${PRO}`), { amount: 1 }));
+  await assertSucceeds(setDoc(doc(db(PRO2), 'bids', `j2_${PRO2}`), bidData('j2', PRO2, 'Quinn')));  // others unaffected
+});
+test('blocking: homeowner removes the blocked contractor\'s bids in the same batch', async () => {
+  await seedOpenJobWithBids();
+  const f = db(HOME);
+  const b = writeBatch(f);
+  b.set(doc(f, 'users', HOME, 'blocked', PRO), { name: 'Pat', createdAt: now() });
+  b.delete(doc(f, 'bids', `j1_${PRO}`));
+  await assertSucceeds(b.commit());
+});
+
+// ---------- contractor profiles ----------
+const profile = (over = {}) => ({
+  company: 'Pat Carpentry', about: 'Decks and doors.', trades: ['Carpentry', 'Painting'], serviceArea: 'Victoria',
+  years: 12, licence: 'Red Seal carpenter', insured: true, updatedAt: now(), ...over,
+});
+test('profiles: owner writes a valid profile; everyone signed in can read it', async () => {
+  await assertSucceeds(setDoc(doc(db(PRO), 'profiles', PRO), profile()));
+  await assertSucceeds(getDoc(doc(db(HOME), 'profiles', PRO)));
+  await assertSucceeds(getDoc(doc(db(STRANGER), 'profiles', PRO)));
+  await assertFails(getDoc(doc(anon(), 'profiles', PRO)));
+  await assertFails(setDoc(doc(db(HOME), 'profiles', PRO), profile()));                    // someone else's
+  await assertFails(deleteDoc(doc(db(HOME), 'profiles', PRO)));
+  await assertSucceeds(deleteDoc(doc(db(PRO), 'profiles', PRO)));
+});
+test('profiles: field validation', async () => {
+  const bad = [
+    { trades: ['Hacking'] }, { trades: 'Carpentry' }, { years: 81 }, { years: -1 }, { years: 2.5 },
+    { insured: 'yes' }, { about: 'x'.repeat(501) }, { verified: true },
+  ];
+  for (const over of bad) await assertFails(setDoc(doc(db(PRO), 'profiles', PRO), profile(over)));
+  await assertSucceeds(setDoc(doc(db(PRO), 'profiles', PRO), profile({ trades: [], licence: '', about: '', years: 0, insured: false })));
+});
+
+// ---------- messages ----------
+const msg = (by, over = {}) => ({ jobId: 'j1', parties: [HOME, PRO], by, text: 'Hi, the gate code is 1234', createdAt: now(), ...over });
+test('messages: the two parties on a booked job can message and read', async () => {
+  await seedBookedJob();
+  const m1 = await assertSucceeds(addDoc(collection(db(HOME), 'messages'), msg(HOME)));
+  await assertSucceeds(addDoc(collection(db(PRO), 'messages'), msg(PRO)));
+  await assertSucceeds(getDoc(doc(db(PRO), 'messages', m1.id)));
+  await assertSucceeds(getDocs(query(collection(db(HOME), 'messages'), where('parties', 'array-contains', HOME))));
+  await assertFails(getDoc(doc(db(PRO2), 'messages', m1.id)));                              // losing bidder
+  await assertFails(getDocs(collection(db(STRANGER), 'messages')));
+  await assertFails(updateDoc(doc(db(HOME), 'messages', m1.id), { text: 'edited' }));
+  await assertFails(deleteDoc(doc(db(HOME), 'messages', m1.id)));
+});
+test('messages: rejected on open jobs, from outsiders, as someone else, or empty', async () => {
+  await seedOpenJobWithBids();
+  await assertFails(addDoc(collection(db(HOME), 'messages'), msg(HOME, { parties: [HOME, PRO] })));   // not booked yet
+  await env.clearFirestore(); await seedUsers(); await seedBookedJob();
+  await assertFails(addDoc(collection(db(PRO2), 'messages'), msg(PRO2, { parties: [HOME, PRO2] })));
+  await assertFails(addDoc(collection(db(STRANGER), 'messages'), msg(STRANGER)));
+  await assertFails(addDoc(collection(db(HOME), 'messages'), msg(PRO)));                     // pretending to be the pro
+  await assertFails(addDoc(collection(db(HOME), 'messages'), msg(HOME, { text: '' })));
+  await assertFails(addDoc(collection(db(HOME), 'messages'), msg(HOME, { text: 'x'.repeat(1001) })));
+  await assertFails(addDoc(collection(db(HOME), 'messages'), msg(HOME, { parties: [HOME, PRO, STRANGER] })));
+});
+test('messages: still allowed after the job is complete', async () => {
+  await seedBookedJob('complete');
+  await assertSucceeds(addDoc(collection(db(HOME), 'messages'), msg(HOME, { text: 'Thanks, great work' })));
+});

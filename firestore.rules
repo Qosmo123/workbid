@@ -26,6 +26,10 @@ service cloud.firestore {
     }
     function windows() { return ['8–10 AM', '10 AM–12 PM', '12–2 PM', '2–4 PM', '4–6 PM', 'Flexible']; }
     function timings() { return ['Flexible', 'Within 2 weeks', 'This week', 'Urgent (24–48 h)']; }
+    // Sales tax rates a contractor can charge: none, GST 5%, HST 13/14/15%. Must match TAXES in ui/Components.kt.
+    function taxRates() { return [0, 0.05, 0.13, 0.14, 0.15]; }
+    // True if `owner` has blocked the signed-in user.
+    function blockedBy(owner) { return exists(/databases/$(database)/documents/users/$(owner)/blocked/$(me())); }
     function reportReasons() {
       return ['Spam or scam', 'Offensive or abusive', 'Fake or misleading', 'Contact details or personal info', 'Something else'];
     }
@@ -38,6 +42,15 @@ service cloud.firestore {
                     && str(newData().name, 1, 60)
                     && newData().createdAt is int;
       allow delete: if signedIn() && me() == userId;
+
+      // People this user has blocked. Private: only the user can see or change their list.
+      match /blocked/{otherId} {
+        allow read, delete: if signedIn() && me() == userId;
+        allow create, update: if signedIn() && me() == userId && otherId != userId
+                    && newData().keys().hasOnly(['name', 'createdAt'])
+                    && str(newData().name, 0, 60)
+                    && newData().createdAt is int;
+      }
     }
 
     // ---------- jobs ----------
@@ -74,7 +87,7 @@ service cloud.firestore {
         return isOwner()
           && resource.data.status == 'open'
           && changed().hasOnly(['status', 'acceptedBidId', 'contractorId', 'contractorName', 'company',
-                                'price', 'scheduledDate', 'window'])
+                                'price', 'scheduledDate', 'window', 'taxRate'])
           && newData().status == 'scheduled'
           && newData().acceptedBidId is string && newData().acceptedBidId != ''
           && b.jobId == jobId
@@ -83,7 +96,8 @@ service cloud.firestore {
           && newData().company == b.company
           && newData().price == b.amount
           && newData().scheduledDate == b.availableDate
-          && newData().window == b.window;
+          && newData().window == b.window
+          && newData().get('taxRate', 0.05) == b.get('taxRate', 0.05);
       }
 
       // Either party moves the booking date or arrival window.
@@ -138,6 +152,7 @@ service cloud.firestore {
           && isDate(d.availableDate)
           && d.window in windows()
           && str(d.get('message', ''), 0, 1000)
+          && d.get('taxRate', 0.05) in taxRates()
           && d.createdAt is int;
       }
 
@@ -146,7 +161,7 @@ service cloud.firestore {
 
       allow create: if signedIn()
                     && newData().keys().hasOnly(['jobId', 'jobOwner', 'contractorId', 'contractorName', 'company', 'amount',
-                                                  'days', 'availableDate', 'window', 'message', 'createdAt'])
+                                                  'days', 'availableDate', 'window', 'message', 'taxRate', 'createdAt'])
                     && newData().jobId is string
                     && newData().jobOwner == job(newData().jobId).postedBy
                     && bidId == newData().jobId + '_' + me()
@@ -154,13 +169,15 @@ service cloud.firestore {
                     && newData().contractorName == myName()
                     && job(newData().jobId).status == 'open'
                     && job(newData().jobId).postedBy != me()
+                    && !blockedBy(job(newData().jobId).postedBy)
                     && validBidFields(newData());
 
       // Contractors edit their own bid only while the job is still open.
       allow update: if signedIn()
                     && resource.data.contractorId == me()
                     && job(resource.data.jobId).status == 'open'
-                    && changed().hasOnly(['company', 'amount', 'days', 'availableDate', 'window', 'message', 'createdAt'])
+                    && !blockedBy(resource.data.jobOwner)
+                    && changed().hasOnly(['company', 'amount', 'days', 'availableDate', 'window', 'message', 'taxRate', 'createdAt'])
                     && validBidFields(newData());
 
       // Contractors withdraw their own bid unless it's the one that was booked.
@@ -197,6 +214,40 @@ service cloud.firestore {
                     && changed().hasOnly(['approved', 'approvedAt'])
                     && newData().approved == true
                     && newData().approvedAt is int;
+    }
+
+    // ---------- contractor profiles ----------
+    // Public to signed-in users (shown with bids). Only the owner writes their own. Self-reported, unverified.
+    match /profiles/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && me() == userId
+                    && newData().keys().hasOnly(['company', 'about', 'trades', 'serviceArea', 'years', 'licence', 'insured', 'updatedAt'])
+                    && str(newData().company, 0, 60)
+                    && str(newData().about, 0, 500)
+                    && newData().trades is list && newData().trades.size() <= 10
+                    && newData().trades.toSet().hasOnly(trades())
+                    && str(newData().serviceArea, 0, 60)
+                    && newData().years is int && newData().years >= 0 && newData().years <= 80
+                    && str(newData().licence, 0, 80)
+                    && newData().insured is bool
+                    && newData().updatedAt is int;
+      allow delete: if signedIn() && me() == userId;
+    }
+
+    // ---------- messages ----------
+    // Between the homeowner and the booked contractor only, once a job is booked. Nobody can edit or delete them,
+    // so both sides keep the same record.
+    match /messages/{msgId} {
+      allow read: if signedIn() && me() in resource.data.parties;
+      allow create: if signedIn()
+                    && newData().keys().hasOnly(['jobId', 'parties', 'by', 'text', 'createdAt'])
+                    && newData().by == me()
+                    && newData().jobId is string
+                    && job(newData().jobId).status in ['scheduled', 'in_progress', 'complete']
+                    && newData().parties == [job(newData().jobId).postedBy, job(newData().jobId).contractorId]
+                    && me() in newData().parties
+                    && str(newData().text, 1, 1000)
+                    && newData().createdAt is int;
     }
 
     // ---------- reports ----------

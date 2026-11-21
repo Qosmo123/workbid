@@ -743,7 +743,7 @@ keyPassword=your-key-password</pre>
     <tr><td>News app</td><td>No.</td></tr>
   </table>
   <div class="box tip"><span class="t">User-generated content</span>
-    <p>Because people post jobs and messages others can see, Google expects a way to report bad content, and that you act on reports. Workbid has this: the ⋮ menu on any job and the <em>Report</em> link on bids. Reports land in Firebase (chapter 6 shows how to review them). Your terms of use should say what isn't allowed. The template in Appendix A does.</p>
+    <p>Because people post jobs and messages others can see, Google expects a way to report bad content, and that you act on reports. Workbid has this: the ⋮ menu on any job and the <em>Report</em> link on bids. People can also <em>Block</em> someone from the same places, and manage their list under Account → Blocked people. Reports land in Firebase (chapter 6 shows how to review them). Your terms of use should say what isn't allowed. The template in Appendix A does.</p>
   </div>
 
   <h2>Step 6 · Internal testing (you, today)</h2>
@@ -1048,7 +1048,7 @@ keyPassword=your-key-password</pre>
 
   <h2>GST</h2>
   <p>You must register for GST once the business's taxable revenue passes $30,000 over four consecutive calendar quarters (the "small supplier" threshold). Before that it's optional. While Workbid is free, this doesn't apply yet.</p>
-  <p>The app adds 5% GST to bid and work-order totals, which matches BC (where PST is separate). Many very small contractors aren't GST-registered and shouldn't charge it. Making the tax setting per-contractor is on the improvement list in chapter 10.</p>
+  <p>Each contractor picks the sales tax they charge when they bid: GST 5%, HST 13%, 14% or 15%, or "No sales tax" if they aren't registered. The booked job and its work orders use the rate from the accepted bid. Workbid never collects or pays the tax itself; it only shows the right totals. (BC PST usually doesn't apply to labour; Quebec's QST isn't supported yet.)</p>
 
   <h2>Privacy</h2>
   <p>Workbid collects names, email addresses and the content people post. In BC, private organizations are covered by BC's <em>Personal Information Protection Act</em> (PIPA), and the federal <em>PIPEDA</em> applies in many cases. In plain terms:</p>
@@ -1091,7 +1091,7 @@ keyPassword=your-key-password</pre>
     <tr><td>Arrival windows</td><td><code>WINDOWS</code> in <code>ui/Components.kt</code></td><td><code>windows()</code> in <code>firestore.rules</code></td></tr>
     <tr><td>"How soon?" options</td><td><code>TIMING</code> in <code>ui/Components.kt</code></td><td><code>timings()</code> in <code>firestore.rules</code></td></tr>
     <tr><td>Report reasons</td><td><code>REPORT_REASONS</code> in <code>ui/Components.kt</code></td><td><code>reportReasons()</code> in <code>firestore.rules</code></td></tr>
-    <tr><td>Tax rate</td><td><code>GST</code> in <code>ui/Components.kt</code></td><td>Nothing (display only)</td></tr>
+    <tr><td>Tax rates</td><td><code>TAXES</code> in <code>ui/Components.kt</code></td><td><code>taxRates()</code> in <code>firestore.rules</code>, then publish the rules</td></tr>
     <tr><td>Colours</td><td><code>ui/Theme.kt</code> (light and dark sets)</td><td><code>res/values/colors.xml</code> for the icon and launch screen</td></tr>
     <tr><td>App name on the phone</td><td><code>res/values/strings.xml</code></td><td>Store listing</td></tr>
     <tr><td>Wording on a screen</td><td>Search the project for the exact text (<em>Edit → Find → Find in Files</em>, Ctrl+Shift+F) and change it</td><td>Nothing</td></tr>
@@ -1132,12 +1132,12 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
     <tr><td>✓</td><td><strong>Load only what each person needs.</strong> Done: the app asks only for open jobs and the person's own items.</td><td>Costs and free-plan limits, and speed as you grow.</td></tr>
     <tr><td>3</td><td><strong>Push notifications</strong> for new bids, bookings and approvals (Firebase Cloud Messaging plus a Cloud Function; needs the Blaze plan).</td><td>The biggest product gap. Today people have to open the app to notice anything.</td></tr>
     <tr><td>3b</td><td><strong>Firebase App Check</strong> (Play Integrity).</td><td>Stops scripts that aren't your app from talking to your database. About an hour of setup in the Firebase console plus a small code change.</td></tr>
-    <tr><td>4</td><td><strong>Block users</strong> and a simple admin screen for reports.</td><td>Easier moderation; Google expects strong UGC tools as you grow.</td></tr>
+    <tr><td>4</td><td><strong>An admin screen for reports.</strong> Blocking is done: anyone can block a user from their bid or job, and blocked contractors can't bid on that homeowner's jobs.</td><td>Easier moderation than the Firebase console as you grow.</td></tr>
     <tr><td>5</td><td><strong>Photos</strong> on jobs and receipts (Firebase Storage).</td><td>Better bids; homeowners can show the problem.</td></tr>
-    <tr><td>6</td><td><strong>Contractor profiles</strong> with licence, insurance, reviews.</td><td>Trust, and the basis for a paid "verified" tier.</td></tr>
-    <tr><td>7</td><td><strong>Tax settings per contractor</strong> (GST, HST, PST, none) and money stored in cents.</td><td>Correct totals outside BC and for small, unregistered contractors.</td></tr>
+    <tr><td>6</td><td><strong>Reviews and a "verified" badge.</strong> Contractor profiles are done (trades, experience, licence, insurance, all self-reported).</td><td>Trust, and the basis for a paid "verified" tier where you check licences and insurance.</td></tr>
+    <tr><td>7</td><td><strong>Money stored in cents.</strong> Sales tax per bid is done (GST, HST or none).</td><td>Avoids rounding by a cent on large totals.</td></tr>
     <tr><td>8</td><td><strong>Distance filtering</strong> from the homeowner's area.</td><td>Needed once you expand beyond one city.</td></tr>
-    <tr><td>9</td><td><strong>In-app messaging</strong> between homeowner and booked contractor.</td><td>Today they exchange phone numbers outside the app.</td></tr>
+    <tr><td>✓</td><td><strong>In-app messaging</strong> between homeowner and booked contractor. Done; without push notifications (item 3), people see new messages next time they open the job.</td><td>Keeps arrangements in one place.</td></tr>
     <tr><td>10</td><td><strong>Crash reporting</strong> (Firebase Crashlytics) and automated backups.</td><td>Know about problems before users tell you.</td></tr>
   </table>
   <div class="box tip"><span class="t">Rule of thumb</span>
@@ -1203,7 +1203,8 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
     <tr><td>Can users request deletion?</td><td>Yes: in the app and at your deletion URL.</td></tr>
     <tr><td>Personal info → Name</td><td>Collected · not shared · required · App functionality, Account management</td></tr>
     <tr><td>Personal info → Email address</td><td>Collected · not shared · required · App functionality, Account management</td></tr>
-    <tr><td>App activity → Other user-generated content</td><td>Collected (job posts, bids, messages, work orders, receipt entries) · not shared · required · App functionality</td></tr>
+    <tr><td>Messages → Other in-app messages</td><td>Collected (messages between a homeowner and their booked contractor) · not shared · optional · App functionality</td></tr>
+    <tr><td>App activity → Other user-generated content</td><td>Collected (job posts, bids and bid notes, contractor profiles, work orders, receipt entries, reports) · not shared · required · App functionality</td></tr>
     <tr><td>Everything else (location, financial info, photos, contacts, device IDs, crash logs)</td><td>Not collected. The neighbourhood a homeowner types is user-generated content, not device location.</td></tr>
   </table>
   <p class="small muted">"Shared" in Google's form means transferring data to a third party. Firebase acting as your service provider doesn't count as sharing. If you add analytics, crash reporting, photos or location later, update this form before releasing.</p>
@@ -1215,11 +1216,11 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
     <p><strong>Workbid Privacy Policy</strong><br>Last updated: <span class="fill">date</span></p>
     <p><span class="fill">Your name or business name</span> ("we") operates the Workbid mobile app. This policy explains what information we collect, why, and your choices.</p>
     <h4>What we collect</h4>
-    <p>• <strong>Account information:</strong> your name and email address, and a password (stored securely by our provider; we can't see it).<br>• <strong>Content you post:</strong> jobs (title, trade, neighbourhood, description, budget, dates), bids (business name, price, dates, messages), work orders, receipt entries, and reports you submit.<br>We don't collect your device location, contacts, photos or payment information.</p>
+    <p>• <strong>Account information:</strong> your name and email address, and a password (stored securely by our provider; we can't see it).<br>• <strong>Content you post:</strong> jobs (title, trade, neighbourhood, description, budget, dates), bids (business name, price, sales tax, dates, notes), contractor profiles (business name, trades, service area, experience, licence and insurance details you enter), messages, work orders, receipt entries, the list of people you've blocked, and reports you submit.<br>We don't collect your device location, contacts, photos or payment information.</p>
     <h4>How we use it</h4>
     <p>To run the app: to sign you in, show your jobs and bids to the right people, book dates, and let you track work. To respond to support requests and reports, and to keep the service safe.</p>
     <h4>Who can see it</h4>
-    <p>Your name and the jobs you post are visible to other Workbid users. Your bids are visible only to the homeowner who posted the job, not to other contractors. Once a job is booked, contractors who bid on it can see which company was booked and the final price. Work orders and receipts are visible to the homeowner and booked contractor. We don't sell your information or use it for advertising.</p>
+    <p>Your name and the jobs you post are visible to other Workbid users. Your bids are visible only to the homeowner who posted the job, not to other contractors. Once a job is booked, contractors who bid on it can see which company was booked and the final price. Contractor profiles are visible to other Workbid users. Messages, work orders and receipts are visible only to the homeowner and the booked contractor. Your block list is visible only to you. We don't sell your information or use it for advertising.</p>
     <h4>Service providers</h4>
     <p>We use Google Firebase (Google LLC) to store data and handle sign-in. Data may be stored or processed outside Canada, including in the United States.</p>
     <h4>Keeping and deleting your information</h4>

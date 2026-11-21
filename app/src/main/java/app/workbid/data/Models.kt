@@ -26,6 +26,8 @@ data class HomeJob(
     val scheduledDate: String = "",
     val window: String = "",
     val completedAt: Long = 0,
+    /** Sales tax rate copied from the accepted bid (0.05 = GST 5%). */
+    val taxRate: Double = DEFAULT_TAX,
 )
 
 data class Bid(
@@ -40,7 +42,40 @@ data class Bid(
     val window: String = "",
     val message: String = "",
     val createdAt: Long = 0,
+    /** Sales tax the contractor charges on top of [amount]; 0 if not registered. */
+    val taxRate: Double = DEFAULT_TAX,
 )
+
+/** Someone I've blocked. Stored at users/{me}/blocked/{uid}, readable only by me. */
+data class Blocked(val uid: String = "", val name: String = "", val createdAt: Long = 0)
+
+/**
+ * A contractor's public profile, at profiles/{uid}. Everything here is self-reported;
+ * the app says so wherever it's shown.
+ */
+data class Profile(
+    val uid: String = "",
+    val company: String = "",
+    val about: String = "",
+    val trades: List<String> = emptyList(),
+    val serviceArea: String = "",
+    val years: Int = 0,
+    val licence: String = "",
+    val insured: Boolean = false,
+    val updatedAt: Long = 0,
+)
+
+/** A message between a homeowner and the contractor booked on their job. */
+data class Message(
+    val id: String = "",
+    val jobId: String = "",
+    val by: String = "",
+    val text: String = "",
+    val createdAt: Long = 0,
+)
+
+/** GST 5%, for older bids and jobs saved before tax was chosen per bid. */
+const val DEFAULT_TAX = 0.05
 
 data class LineItem(val desc: String = "", val qty: Double = 0.0, val rate: Double = 0.0) {
     val total: Double get() = qty * rate
@@ -75,6 +110,7 @@ data class Receipt(
 private fun Any?.str(): String = this as? String ?: ""
 private fun Any?.dbl(): Double = (this as? Number)?.toDouble() ?: 0.0
 private fun Any?.lng(): Long = (this as? Number)?.toLong() ?: 0L
+private fun Any?.tax(): Double = (this as? Number)?.toDouble() ?: DEFAULT_TAX
 
 fun DocumentSnapshot.toJob() = HomeJob(
     id = id,
@@ -99,6 +135,7 @@ fun DocumentSnapshot.toJob() = HomeJob(
     scheduledDate = get("scheduledDate").str(),
     window = get("window").str(),
     completedAt = get("completedAt").lng(),
+    taxRate = get("taxRate").tax(),
 )
 
 fun DocumentSnapshot.toBid() = Bid(
@@ -113,7 +150,24 @@ fun DocumentSnapshot.toBid() = Bid(
     window = get("window").str(),
     message = get("message").str(),
     createdAt = get("createdAt").lng(),
+    taxRate = get("taxRate").tax(),
 )
+
+fun DocumentSnapshot.toProfile() = Profile(
+    uid = id,
+    company = get("company").str(),
+    about = get("about").str(),
+    trades = (get("trades") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+    serviceArea = get("serviceArea").str(),
+    years = get("years").lng().toInt(),
+    licence = get("licence").str(),
+    insured = get("insured") as? Boolean ?: false,
+    updatedAt = get("updatedAt").lng(),
+)
+
+fun DocumentSnapshot.toMessage() = Message(id, get("jobId").str(), get("by").str(), get("text").str(), get("createdAt").lng())
+
+fun DocumentSnapshot.toBlocked() = Blocked(id, get("name").str(), get("createdAt").lng())
 
 fun DocumentSnapshot.toWorkOrder(): WorkOrder {
     val raw = get("lines") as? List<*> ?: emptyList<Any>()

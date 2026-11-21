@@ -130,6 +130,8 @@ async function main() {
     bid('outlets', 'demo-pat', 'Pat Morgan', 'Harbour Trades Co.', 480, 1, 6, '12–2 PM', 'Permit included.', 30),
     bid('steps', 'demo-quinn', 'Quinn Alvarez', 'Alvarez Carpentry', 2400, 3, 9, '8–10 AM', 'Timber steps with gravel landings.', 2),
   ];
+  // Quinn isn't GST-registered yet, so one demo bid shows "no sales tax".
+  bids.find((b) => b.id === 'faucet_demo-quinn').taxRate = 0;
   // Point booked jobs at their accepted bids.
   jobs.paint.acceptedBidId = 'paint_demo-pat';
   jobs.fan.acceptedBidId = 'fan_demo-pat';
@@ -150,6 +152,26 @@ async function main() {
         { desc: 'Labour', qty: 3.5, rate: 85 },
       ],
     });
+    await setDoc(doc(f, 'profiles', 'demo-pat'), {
+      company: 'Harbour Trades Co.', trades: ['Plumbing', 'Painting', 'Appliances', 'General repair'],
+      serviceArea: 'Greater Victoria', years: 14, licence: 'Red Seal plumber', insured: true, updatedAt: now - 30 * day,
+      about: 'Small crew, tidy work, 1-year warranty on labour. We text the evening before to confirm.',
+    });
+    await setDoc(doc(f, 'profiles', 'demo-quinn'), {
+      company: 'Alvarez Carpentry', trades: ['Carpentry', 'Flooring'], serviceArea: 'Saanich and Victoria',
+      years: 6, licence: '', insured: true, updatedAt: now - 10 * day,
+      about: 'Decks, fences, stairs and trim. Happy to quote repairs as well as new builds.',
+    });
+    const fanParties = [jobs.fan.postedBy, 'demo-pat'];
+    const chat = [
+      [jobs.fan.postedBy, 'Hi Pat, street parking is fine. The attic hatch is in the hall closet.', 26],
+      ['demo-pat', 'Thanks! I\'ll text when I\'m on my way. Is there a dog?', 25],
+      [jobs.fan.postedBy, 'One very friendly cat. She stays upstairs.', 24],
+      ['demo-pat', 'Sent a work order for the ceiling patch. Have a look when you can.', 2],
+    ];
+    for (const [i, [by, text, hoursAgo]] of chat.entries()) {
+      await setDoc(doc(f, 'messages', `msg-fan-${i + 1}`), { jobId: 'fan', parties: fanParties, by, text, createdAt: now - hoursAgo * 3600000 });
+    }
     await setDoc(doc(f, 'receipts', 'rc-fan-1'), {
       jobId: 'fan', by: 'demo-pat', parties: [jobs.fan.postedBy, 'demo-pat'], vendor: 'Home Depot Victoria', amount: 271.6, date: iso(0),
       note: 'Fan, duct kit, timer switch', createdAt: now - 3 * 3600000,

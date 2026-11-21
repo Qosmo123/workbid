@@ -77,6 +77,18 @@ object Repo {
     fun receiptsFor(uid: String): Flow<List<Receipt>> =
         listen(db.collection("receipts").whereArrayContains("parties", uid)) { it.toReceipt() }
 
+    /** A contractor's profile, or null if they haven't made one. Read once; profiles change rarely. */
+    suspend fun profile(uid: String): Profile? =
+        db.collection("profiles").document(uid).get().await().takeIf { it.exists() }?.toProfile()
+
+    /** Messages on jobs I'm part of. */
+    fun messagesFor(uid: String): Flow<List<Message>> =
+        listen(db.collection("messages").whereArrayContains("parties", uid)) { it.toMessage() }
+
+    /** People I've blocked. */
+    fun blocked(uid: String): Flow<List<Blocked>> =
+        listen(db.collection("users").document(uid).collection("blocked")) { it.toBlocked() }
+
     /** Adds a document with a generated ID and returns that ID. */
     suspend fun add(collection: String, data: Map<String, Any>): String =
         db.collection(collection).add(data).await().id
