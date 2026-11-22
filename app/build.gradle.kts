@@ -24,9 +24,10 @@ android {
         applicationId = "app.workbid"
         minSdk = 26
         targetSdk = 36
-        // Raise versionCode by 1 for every upload to Google Play. versionName is what people see.
-        versionCode = 2
-        versionName = "1.1"
+        // Google Play needs a higher versionCode on every upload. The release workflow
+        // (.github/workflows/release.yml) passes one automatically; local builds use the defaults.
+        versionCode = (project.findProperty("workbid.versionCode") as String?)?.toInt() ?: 2
+        versionName = (project.findProperty("workbid.versionName") as String?) ?: "1.1"
     }
 
     signingConfigs {
@@ -86,4 +87,8 @@ dependencies {
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
     debugImplementation("com.google.firebase:firebase-appcheck-debug")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    // Google Play in-app updates: downloads new versions in the background and offers a restart.
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
+    // app-update pulls in an old Fragment library; the update prompt needs 1.3.0 or newer.
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 }

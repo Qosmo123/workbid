@@ -1,0 +1,52 @@
+# Publishes firestore.rules to the live Firebase project when they change on master,
+# after the rules tests pass. Replaces pasting the rules into the Firebase console.
+name: Deploy Firestore rules
+
+on:
+  push:
+    branches: [master]
+    paths: ['firestore.rules']
+  workflow_dispatch:
+
+concurrency:
+  group: rules
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: rules-test/package-lock.json
+
+      - name: Run rules tests
+        working-directory: rules-test
+        run: |
+          npm ci
+          npm test
+
+      - name: Publish rules
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        working-directory: rules-test
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+          PROJECT="${FIREBASE_PROJECT_ID:-$(node -e "import('./project.js').then(m => console.log(m.projectId()))")}"
+          echo "Publishing firestore.rules to $PROJECT"
+          npx firebase deploy --only firestore:rules --project "$PROJECT" --config ../firebase.json --non-interactive
+          rm -f "$RUNNER_TEMP/firebase-sa.json"
+
+      - name: Explain a skipped publish
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON == ''
+        run: |
+          echo "::warning::Rules tests passed but nothing was published: the FIREBASE_SERVICE_ACCOUNT_JSON secret is not set. Paste firestore.rules into the Firebase console, or add the secret (README.md > Automatic releases)."

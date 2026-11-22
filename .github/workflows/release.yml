@@ -1,0 +1,139 @@
+# Publishes the app to Google Play whenever app code reaches the master branch.
+#
+#   Developer: merge or push to master  ->  this workflow tests, builds, signs and uploads.
+#   Owner:     nothing to do. Testers and users get the update from Google Play automatically.
+#
+# One-time setup (secrets and variables) is in README.md under "Automatic releases"
+# and in the hand-off guide, chapter 11.
+name: Release to Google Play
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'app/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'distribution/**'
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Google Play track (blank = the PLAY_TRACK variable, or internal)'
+        required: false
+        default: ''
+
+# Never run two releases at once; they would fight over the version number.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TRACK: ${{ inputs.track || vars.PLAY_TRACK || 'internal' }}
+      VERSION_NAME_BASE: ${{ vars.VERSION_NAME_BASE || '1.1' }}
+      # Automatic version codes start above the ones used for manual uploads.
+      VERSION_CODE_OFFSET: ${{ vars.VERSION_CODE_OFFSET || '100' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: rules-test/package-lock.json
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Check the signing key is set up
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$UPLOAD_KEYSTORE_BASE64" ]; then
+            echo "::error::The UPLOAD_KEYSTORE_BASE64 secret is missing. See README.md > Automatic releases."
+            exit 1
+          fi
+
+      - name: Run rules tests (a release never ships with failing rules)
+        working-directory: rules-test
+        run: |
+          npm ci
+          npm test
+
+      - name: Set version
+        run: |
+          echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + VERSION_CODE_OFFSET))" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=${VERSION_NAME_BASE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+
+      - name: Restore signing key
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$UPLOAD_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Use the owner's Firebase project (if provided)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+            echo "Using google-services.json from the GOOGLE_SERVICES_JSON secret."
+          else
+            echo "Using the google-services.json committed in the repo."
+          fi
+
+      - name: Build signed app bundle
+        run: >
+          bash ./gradlew bundleRelease --stacktrace
+          -Pworkbid.versionCode=$VERSION_CODE
+          -Pworkbid.versionName=$VERSION_NAME
+
+      - name: Keep a copy of the bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: workbid-${{ env.VERSION_NAME }}
+          path: |
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/mapping/release/mapping.txt
+          retention-days: 90
+
+      - name: Upload to Google Play
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        if: env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.workbid
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          mappingFile: app/build/outputs/mapping/release/mapping.txt
+          whatsNewDirectory: distribution/whatsnew
+          track: ${{ env.TRACK }}
+          status: completed
+
+      - name: Summary
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          {
+            echo "### Workbid $VERSION_NAME (version code $VERSION_CODE)"
+            if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+              echo "Uploaded to the **$TRACK** track on Google Play."
+            else
+              echo "Built and signed, but **not uploaded**: the PLAY_SERVICE_ACCOUNT_JSON secret isn't set yet."
+              echo "Download the bundle from this run's artifacts to upload it by hand."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
