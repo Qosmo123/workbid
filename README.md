@@ -79,6 +79,38 @@ Data lives in Firestore collections `jobs`, `bids`, `workorders`, `receipts`, `u
 
 **Whenever `firestore.rules` changes, paste it into Firestore → Rules again and Publish.** The lists in `ui/Components.kt` (`CATS`, `WINDOWS`, `TIMING`, `REPORT_REASONS`, and the rates in `TAXES`) must match the lists in the rules exactly.
 
+### Automatic releases (GitHub Actions)
+
+The developer keeps the code; the app owner keeps the Google Play account and Firebase project. Merging to `master` releases:
+
+| Workflow | Runs when | Does |
+|---|---|---|
+| `ci.yml` | every pull request | rules tests and a debug build |
+| `release.yml` | app code changes on `master` (or run by hand) | rules tests, signed `.aab` with an automatic version, upload to Google Play, keeps the `.aab` as a run artifact |
+| `rules.yml` | `firestore.rules` changes on `master` (or run by hand) | rules tests, then `firebase deploy --only firestore:rules` |
+
+**Every update:** edit `distribution/whatsnew/whatsnew-en-US` (the release notes, 500 characters max), then merge to `master`. Version codes are `run number + 100`, and version names are `1.1.<run number>`. Change the base with the `VERSION_NAME_BASE` and `VERSION_CODE_OFFSET` repository variables.
+
+**Upload key:** `Documents\Workbid signing key\` on the developer's PC (`workbid-upload.jks` plus `keystore.properties`). Back up that folder somewhere safe. With Play App Signing, Google holds the real app signing key, and a lost upload key can be reset through Play Console support.
+
+**Secrets** (Settings → Secrets and variables → Actions). `scripts/set-release-secrets.ps1` sets them from the files, so nothing is pasted by hand:
+
+| Secret | From | Needed for |
+|---|---|---|
+| `UPLOAD_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | the upload key folder | every release |
+| `PLAY_SERVICE_ACCOUNT_JSON` | the owner's `workbid-releases` service-account key (guide chapter 11) | uploading to Play; without it, release runs only build the `.aab` |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | the same key file works | publishing rules; without it, `rules.yml` only tests |
+| `GOOGLE_SERVICES_JSON` (optional) | the owner's Firebase project | building against their project instead of the committed `app/google-services.json` |
+
+**Variables:** `PLAY_TRACK` is `internal`, `alpha` (closed testing) or `production`, with `internal` as the default. `FIREBASE_PROJECT_ID` is optional and defaults to the ID in `app/google-services.json`.
+
+**Limits:**
+- Google Play won't accept an app's first upload through the API, so the owner uploads the first `.aab` by hand. Releases also fail while the app is still a draft in Play Console.
+- Production releases still go through Google's review.
+- Rules go live immediately but app updates roll out over days, so every rules change must keep working for the previous app version.
+
+**In-app updates:** release builds installed from Play check for a newer version on launch, download it in the background, and show "A new version of Workbid is ready · Restart" (`AppUpdates.kt`).
+
 ### Testing the rules
 `rules-test/` runs the rules against the Firestore emulator (43 tests). It needs Node.js and Java 21 or newer.
 

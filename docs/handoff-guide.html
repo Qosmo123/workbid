@@ -158,7 +158,8 @@
     <div><span class="n">8</span><span>Business basics<span class="d">Registration, tax, privacy, liability</span></span></div>
     <div><span class="n">9</span><span>Changing the app<span class="d">Common edits and getting help</span></span></div>
     <div><span class="n">10</span><span>Limits and next steps<span class="d">What to build next, in order</span></span></div>
-    <div><span class="n">11</span><span>Troubleshooting<span class="d">When something goes wrong</span></span></div>
+    <div><span class="n">11</span><span>How updates reach your users<span class="d">Automatic releases from your developer</span></span></div>
+    <div><span class="n">12</span><span>Troubleshooting<span class="d">When something goes wrong</span></span></div>
     <div><span class="n">A</span><span>Templates and checklists<span class="d">Privacy policy, store text, launch list</span></span></div>
   </div>
 
@@ -608,7 +609,7 @@ const val TERMS_URL = "https://yourdomain.ca/terms"</pre>
   <ol class="steps">
     <li>Firebase console → <em>Firestore Database</em> → <em>Rules</em> tab.</li>
     <li>Delete everything there, paste the full contents of <code>firestore.rules</code> from the project folder, and click <em>Publish</em>.</li>
-    <li>Do this again every time <code>firestore.rules</code> changes.</li>
+    <li>Do this once now. After the one-time setup in chapter 11, changed rules are published automatically.</li>
   </ol>
   <div class="box stop"><span class="t">Stop: don't skip this</span>
     <p>The app and the rules were updated together. If the old rules are still published, placing bids fails, and the protections against people changing other people's jobs aren't active.</p>
@@ -806,13 +807,8 @@ keyPassword=your-key-password</pre>
   </ol>
 
   <h2>Releasing updates later</h2>
-  <ol>
-    <li>Make your change and test it (chapter 3).</li>
-    <li>Raise <code>versionCode</code> by 1 and update <code>versionName</code> in <code>app/build.gradle.kts</code>.</li>
-    <li>Build a new signed bundle with the <em>same</em> upload key.</li>
-    <li>Play Console → <em>Production → Create new release</em> → upload → release notes → roll out.</li>
-    <li>If you changed <code>firestore.rules</code>, publish them in Firebase <em>before</em> the update reaches people.</li>
-  </ol>
+  <p>After your first release, updates are automatic: your developer merges a change and GitHub uploads it to Google Play for you. Chapter 11 explains the one-time setup and who does what.</p>
+  <p class="small muted">If you ever need to release by hand (for example, the automation is switched off): download the <code>.aab</code> from the latest GitHub "Release to Google Play" run, then Play Console → your track → <em>Create new release</em> → upload → release notes → roll out.</p>
 
   <h2>Common rejection reasons and fixes</h2>
   <table>
@@ -1098,7 +1094,7 @@ keyPassword=your-key-password</pre>
 <section class="chapter">
   <p class="kicker">Chapter 9</p>
   <h1 class="ch">Changing the app</h1>
-  <p class="lede">Many small changes are a one-line edit. Make the change, test it with the demo data (chapter 3), then release it (chapter 5, "Releasing updates").</p>
+  <p class="lede">Many small changes are a one-line edit. Make the change, test it with the demo data (chapter 3), then release it by merging to master (chapter 11).</p>
   <div class="inshort"><span class="t">In short</span><ul><li>Small text and list changes are one-line edits.</li><li>Lists in the app must match lists in the rules, exactly.</li><li>For bigger changes use an AI coding assistant or hire a developer.</li></ul></div>
 
   <h2>Common edits</h2>
@@ -1175,6 +1171,86 @@ item 2 (load only the data each screen needs). Update the rules and tests."</pre
 <!-- =========================================================== 11 -->
 <section class="chapter">
   <p class="kicker">Chapter 11</p>
+  <h1 class="ch">How updates reach your users</h1>
+  <p class="lede">Your developer keeps building Workbid. You run the business. Updates travel from their code to your users' phones automatically. After a one-time setup, you don't have to do anything when there's a new version.</p>
+  <div class="inshort"><span class="t">In short</span><ul><li>Your developer publishes updates; Google Play delivers them.</li><li>You do a one-time setup (about 30 minutes) to give the developer's release robot permission.</li><li>You stay the owner: you can remove that permission any time.</li></ul></div>
+
+  <figure class="dia">
+    <svg viewBox="0 0 800 210" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+      <defs><marker id="ua" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#17666b"/></marker></defs>
+      <rect x="10" y="40" width="150" height="74" rx="10" fill="#e6f0ef" stroke="#17666b"/>
+      <text x="85" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="#14211f">Developer</text>
+      <text x="85" y="87" text-anchor="middle" font-size="10" fill="#5b676d">changes the code and</text>
+      <text x="85" y="100" text-anchor="middle" font-size="10" fill="#5b676d">merges it to master</text>
+      <line x1="160" y1="77" x2="212" y2="77" stroke="#17666b" stroke-width="2" marker-end="url(#ua)"/>
+      <rect x="215" y="40" width="170" height="74" rx="10" fill="#fff" stroke="#17666b"/>
+      <text x="300" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#14211f">GitHub</text>
+      <text x="300" y="84" text-anchor="middle" font-size="10" fill="#5b676d">tests, builds and signs</text>
+      <text x="300" y="97" text-anchor="middle" font-size="10" fill="#5b676d">the new version</text>
+      <line x1="385" y1="77" x2="437" y2="77" stroke="#17666b" stroke-width="2" marker-end="url(#ua)"/>
+      <rect x="440" y="40" width="160" height="74" rx="10" fill="#fff4d6" stroke="#c9a227"/>
+      <text x="520" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#14211f">Google Play</text>
+      <text x="520" y="84" text-anchor="middle" font-size="10" fill="#5b676d">your account; reviews</text>
+      <text x="520" y="97" text-anchor="middle" font-size="10" fill="#5b676d">and delivers it</text>
+      <line x1="600" y1="77" x2="652" y2="77" stroke="#17666b" stroke-width="2" marker-end="url(#ua)"/>
+      <rect x="655" y="40" width="135" height="74" rx="10" fill="#e6f0ef" stroke="#17666b"/>
+      <text x="722" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#14211f">Phones</text>
+      <text x="722" y="84" text-anchor="middle" font-size="10" fill="#5b676d">update in the background,</text>
+      <text x="722" y="97" text-anchor="middle" font-size="10" fill="#5b676d">then "Restart"</text>
+      <path d="M300,114 L300,160 L440,160" fill="none" stroke="#17666b" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ua)"/>
+      <rect x="443" y="140" width="190" height="42" rx="10" fill="#fff" stroke="#17666b" stroke-dasharray="5 4"/>
+      <text x="538" y="158" text-anchor="middle" font-size="12" font-weight="700" fill="#14211f">Firebase rules</text>
+      <text x="538" y="173" text-anchor="middle" font-size="10" fill="#5b676d">published only when they change</text>
+    </svg>
+    <figcaption>What happens each time your developer releases a change</figcaption>
+  </figure>
+
+  <h2>Who does what</h2>
+  <table>
+    <tr><th></th><th>You (owner)</th><th>Your developer</th></tr>
+    <tr><td>Owns</td><td>Google Play account, Firebase project, the business, users' data</td><td>The code on GitHub and the upload key that signs new versions</td></tr>
+    <tr><td>Once</td><td>The setup below: give the release robot permission, send two files</td><td>Stores those files as encrypted GitHub secrets</td></tr>
+    <tr><td>Every update</td><td>Nothing. Optionally read the release notes in Play Console.</td><td>Writes the change and its release notes, then merges it</td></tr>
+    <tr><td>Every week</td><td>Reports, users, Play reviews (chapter 6)</td><td>Fixes and new features</td></tr>
+  </table>
+
+  <h2>One-time setup (you, about 30 minutes)</h2>
+  <p>Do this after your first release is live in Play Console (chapter 5). Google won't let a robot make an app's very first upload; your developer sends you that first file.</p>
+  <ol class="steps">
+    <li><b>Create the release robot.</b> Open <code>console.cloud.google.com</code>, choose your Workbid Firebase project at the top, then go to <em>IAM &amp; Admin → Service accounts → + Create service account</em>. Name: <code>workbid-releases</code>. Click <em>Create and continue</em>.</li>
+    <li><b>Let it publish the security rules.</b> On the same screen, add the roles <em>Firebase Rules Admin</em>, <em>Firebase Viewer</em> and <em>Service Usage Consumer</em>. Click <em>Done</em>.</li>
+    <li><b>Make its key.</b> Click the new account → <em>Keys → Add key → Create new key → JSON</em>. A file downloads. Treat it like a password.</li>
+    <li><b>Let it upload to Google Play.</b> Play Console → <em>Users and permissions → Invite new users</em>. Paste the robot's email (it ends in <code>iam.gserviceaccount.com</code>). Under <em>App permissions</em>, add Workbid and tick <em>Release to testing tracks</em>, and <em>Release to production, exclude devices, and use Play App Signing</em> once you have production access. Click <em>Invite user</em>.</li>
+    <li><b>Send two files to your developer, privately.</b> The JSON key from step 3, and <code>google-services.json</code> (Firebase console → ⚙ Project settings → Your apps → Android app). Use a password manager's secure share or hand them over in person. Don't email or text them.</li>
+    <li><b>Delete your downloaded copy of the key</b> once your developer confirms it works. You can make a new one any time.</li>
+  </ol>
+  <div class="box tip"><span class="t">You're still in charge</span>
+    <p>To stop automatic releases, remove the robot in Play Console → <em>Users and permissions</em>, or delete its key in Google Cloud. Nothing can be released to your app without that permission. Your developer can't see your users, your Play account, or your money.</p>
+  </div>
+
+  <h2>What happens on each update</h2>
+  <ol>
+    <li>Your developer merges a change. About 10 minutes later the new version is in Play Console, with release notes.</li>
+    <li><b>Testing track:</b> testers get it within minutes to hours. <b>Production:</b> Google reviews it first (usually hours, sometimes a few days).</li>
+    <li>Phones update on their own, as with any Play app. If someone has Workbid open, it downloads in the background and shows <em>"A new version of Workbid is ready · Restart"</em>.</li>
+    <li>If the change touched the security rules, they're published to Firebase automatically after their tests pass.</li>
+  </ol>
+
+  <h2>Which track updates go to</h2>
+  <p>Your developer sets this once on GitHub (the <code>PLAY_TRACK</code> setting) and changes it as you move through the launch:</p>
+  <table>
+    <tr><th>Stage</th><th>PLAY_TRACK</th><th>Who gets updates</th></tr>
+    <tr><td>Practising</td><td><code>internal</code></td><td>Up to 100 internal testers you added</td></tr>
+    <tr><td>The 14-day closed test (chapter 5)</td><td><code>alpha</code></td><td>Your closed testers</td></tr>
+    <tr><td>After production access</td><td><code>production</code></td><td>Everyone, after Google's review</td></tr>
+  </table>
+  <div class="box warn"><span class="t">Watch out: rules go live faster than the app</span>
+    <p>New security rules apply within a minute, but app updates reach phones over hours or days. So a rules change must keep working with the version people already have. Your developer knows this; if the app suddenly says "That change wasn't allowed" for everyone after an update, tell them right away.</p>
+  </div>
+</section>
+
+<section class="chapter">
+  <p class="kicker">Chapter 12</p>
   <h1 class="ch">Troubleshooting</h1>
 
   

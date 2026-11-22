@@ -41,6 +41,12 @@ Date: 2026-11-20 · Scope: all source under `app/`, `firestore.rules`, build con
 > - **H8 partly fixed:** App Check is installed (Play Integrity in release, debug provider in debug, skipped for emulator builds). Nothing is enforced until the owner turns it on in the console, as the guide's chapter 10 describes.
 > - 43 rules tests pass.
 
+> **Update 2026-11-22 (automatic releases):**
+> - GitHub Actions: `ci.yml` (tests and build on pull requests), `release.yml` (signed bundle to Google Play on merge to `master`), `rules.yml` (publish `firestore.rules` on change). Version codes are automatic.
+> - Upload key generated outside the repo. `scripts/set-release-secrets.ps1` loads secrets into GitHub.
+> - Play in-app updates: background download plus a "Restart" bar.
+> - Guide chapter 11 explains the owner's one-time setup (service account, Play permission) and who does what.
+
 **Verdict (original audit): not ready yet.** The screens and flows are solid for a prototype. Three problems in the data and sign-in layer mean people would think things saved when they didn't, and see data that isn't real. The Firestore rules also let either party rewrite a booked job. Fix the Blockers before anyone outside your own testing uses it.
 
 ---
